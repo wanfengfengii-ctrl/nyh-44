@@ -55,9 +55,10 @@
 
 	<div class="space-y-3">
 		<div>
-			<label class="text-xs font-body font-medium text-white/50 block mb-1 uppercase tracking-wider">保存当前方案</label>
+			<label for="scenario-name-input" class="text-xs font-body font-medium text-white/50 block mb-1 uppercase tracking-wider">保存当前方案</label>
 			<div class="flex gap-2">
 				<input
+					id="scenario-name-input"
 					type="text"
 					bind:value={scenarioName}
 					placeholder="输入方案名称..."
@@ -107,7 +108,7 @@
 							<div class="font-body font-medium text-sm truncate text-white/90">{s.name}</div>
 						</div>
 						<div class="text-xs text-white/40 mb-2 font-body">
-							{formatDate(s.createdAt)} · {s.points.length} 点位 · {s.cliffs.length} 岩壁
+							{formatDate(s.createdAt)} · {s.points.length} 点位 · {s.cliffs.length} 岩壁 · {s.routes?.length ?? 0} 航线
 						</div>
 						<div class="flex gap-1">
 							<button

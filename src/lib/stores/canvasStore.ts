@@ -4,15 +4,17 @@ import type { CanvasMode } from '../types';
 interface CanvasState {
 	mode: CanvasMode;
 	selectedId: string | null;
-	selectedType: 'point' | 'cliff' | null;
+	selectedType: 'point' | 'cliff' | 'route' | 'waypoint' | null;
 	cliffStart: { x: number; y: number } | null;
+	editingRouteId: string | null;
 }
 
 const initialState: CanvasState = {
 	mode: 'select',
 	selectedId: null,
 	selectedType: null,
-	cliffStart: null
+	cliffStart: null,
+	editingRouteId: null
 };
 
 function createCanvasStore() {
@@ -44,6 +46,22 @@ function createCanvasStore() {
 		}));
 	}
 
+	function selectRoute(id: string): void {
+		update((state) => ({
+			...state,
+			selectedId: id,
+			selectedType: 'route'
+		}));
+	}
+
+	function selectWaypoint(id: string): void {
+		update((state) => ({
+			...state,
+			selectedId: id,
+			selectedType: 'waypoint'
+		}));
+	}
+
 	function clearSelection(): void {
 		update((state) => ({
 			...state,
@@ -67,6 +85,13 @@ function createCanvasStore() {
 		}));
 	}
 
+	function setEditingRouteId(routeId: string | null): void {
+		update((state) => ({
+			...state,
+			editingRouteId: routeId
+		}));
+	}
+
 	function reset(): void {
 		set(initialState);
 	}
@@ -76,9 +101,12 @@ function createCanvasStore() {
 		setMode,
 		selectPoint,
 		selectCliff,
+		selectRoute,
+		selectWaypoint,
 		clearSelection,
 		startCliff,
 		endCliff,
+		setEditingRouteId,
 		reset
 	};
 }

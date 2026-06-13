@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import cytoscape, { type Core, type ElementDefinition } from 'cytoscape';
-	import { points, lighthouse } from '$lib/stores/pointsStore';
+	import { points, soundSources, allSources } from '$lib/stores/pointsStore';
 	import { cliffs } from '$lib/stores/cliffsStore';
 	import { canvas } from '$lib/stores/canvasStore';
-	import { propagationResults, propagationSector, getIntensityColor } from '$lib/stores/propagationStore';
+	import { propagationResults, perSourceSectors, getIntensityColor, activeRouteAnalysis, routeAnalysisResults } from '$lib/stores/propagationStore';
+	import { routes, activeRoute, activeRouteId } from '$lib/stores/routesStore';
 	import { weather } from '$lib/stores/weatherStore';
 	import { alerts } from '$lib/stores/alertsStore';
 	import type { PointType } from '$lib/types';
+	import { getRiskColor } from '$lib/acoustics';
 
 	const CANVAS_WIDTH = 800;
 	const CANVAS_HEIGHT = 600;
@@ -20,17 +22,32 @@
 	let tempCliffId = $state<string | null>(null);
 
 	let modeLabel = $derived.by(() => {
-		if ($canvas.mode === 'select') return '选择模式';
-		if ($canvas.mode === 'addCliff') return isDrawingCliff ? '点击确定岩壁终点' : '点击设置岩壁起点';
+		const mode = $canvas.mode;
+		if (mode === 'select') return '选择模式';
+		if (mode === 'addCliff') return isDrawingCliff ? '点击确定岩壁终点' : '点击设置岩壁起点';
+		if (mode === 'editRoute') {
+			if (!$activeRoute) return '请先选择或创建航线';
+			return '点击画布添加航点';
+		}
+		if (mode === 'addFoghorn') return '点击放置雾号';
 		return '点击画布放置点位';
 	});
 
 	function getPointColor(type: PointType): string {
 		switch (type) {
 			case 'lighthouse': return '#FFD700';
+			case 'foghorn': return '#f97316';
 			case 'coast': return '#3b82f6';
 			case 'port': return '#8b5cf6';
 			case 'ship': return '#06b6d4';
+		}
+	}
+
+	function getPointShape(type: PointType): string {
+		switch (type) {
+			case 'lighthouse': return 'star';
+			case 'foghorn': return 'triangle';
+			default: return 'ellipse';
 		}
 	}
 
@@ -45,48 +62,247 @@
 
 		const elements: ElementDefinition[] = [];
 
-		$points.forEach((p) => {
-			const result = p.type !== 'lighthouse' ? getResultForPoint(p.id) : null;
-			let borderColor = '#ffffff';
-			let borderWidth = 2;
+		renderSectorOverlays(elements);
+		renderRoutes(elements);
+		renderCliffs(elements);
+		renderPoints(elements);
 
-			if (result) {
-				if (result.isBlocked) {
-					borderColor = '#ef4444';
-					borderWidth = 4;
-				} else if (result.isReachable) {
-					borderColor = getIntensityColor(result.intensity);
-					borderWidth = 4;
+		cy.add(elements);
+
+		renderWindIndicator();
+	}
+
+	function renderSectorOverlays(elements: ElementDefinition[]) {
+		const sectors = $perSourceSectors;
+		const sources = $allSources;
+
+		let svgContent = '';
+
+		for (const source of sources) {
+			const sector = sectors.get(source.id);
+			if (!sector || sector.length === 0) continue;
+			if (source.sourceParams?.enabled === false) continue;
+
+			for (let i = 0; i < sector.length; i++) {
+				const sample = sector[i];
+				const nextSample = sector[(i + 1) % sector.length];
+				const color = getIntensityColor(sample.intensity);
+
+				const rad1 = ((90 - sample.angle) * Math.PI) / 180;
+				const rad2 = ((90 - nextSample.angle) * Math.PI) / 180;
+
+				const r = sample.maxDistance;
+				if (r <= 0) continue;
+
+				const x1 = source.x + Math.cos(rad1) * r;
+				const y1 = source.y + Math.sin(rad1) * r;
+				const x2 = source.x + Math.cos(rad2) * r;
+				const y2 = source.y + Math.sin(rad2) * r;
+
+				svgContent += `<path d="M ${source.x} ${source.y} L ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2} Z" fill="${color}" fill-opacity="0.12" stroke="${color}" stroke-opacity="0.3" stroke-width="1"/>`;
+			}
+		}
+
+		if (svgContent) {
+			elements.push({
+				group: 'nodes',
+				data: { id: 'sector-overlay' },
+				position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 },
+				style: {
+					width: CANVAS_WIDTH,
+					height: CANVAS_HEIGHT,
+					'background-image': `data:image/svg+xml;utf8,${encodeURIComponent(
+						`<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS_WIDTH}" height="${CANVAS_HEIGHT}" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}">${svgContent}</svg>`
+					)}`,
+					'background-width': '100%',
+					'background-height': '100%',
+					shape: 'rectangle',
+					opacity: 1,
+					'z-index': -10
+				}
+			});
+		}
+	}
+
+	function renderRoutes(elements: ElementDefinition[]) {
+		const allRoutes = $routes;
+		const analysisMap = $routeAnalysisResults;
+
+		for (const route of allRoutes) {
+			if (route.waypoints.length < 2) {
+				for (let i = 0; i < route.waypoints.length; i++) {
+					const wp = route.waypoints[i];
+					elements.push({
+						group: 'nodes',
+						data: {
+							id: `wp-${wp.id}`,
+							label: wp.label,
+							waypointId: wp.id,
+							routeId: route.id
+						},
+						position: { x: wp.x, y: wp.y },
+						style: {
+							'background-color': '#22d3ee',
+							'border-color': route.id === $activeRouteId ? '#06b6d4' : '#0891b2',
+							'border-width': route.id === $activeRouteId ? 3 : 2,
+							width: 14,
+							height: 14,
+							shape: 'diamond',
+							label: 'data(label)',
+							'font-size': 9,
+							'text-valign': 'bottom',
+							'text-margin-y': 3,
+							color: '#67e8f9',
+							'text-outline-width': 2,
+							'text-outline-color': '#0c4a6e',
+							'z-index': 50
+						}
+					});
+				}
+				continue;
+			}
+
+			const analysis = analysisMap.get(route.id);
+			const segments = analysis?.segments ?? [];
+
+			for (let i = 0; i < route.waypoints.length - 1; i++) {
+				const start = route.waypoints[i];
+				const end = route.waypoints[i + 1];
+				const segDist = Math.sqrt((end.x - start.x) ** 2 + (end.y - start.y) ** 2);
+
+				if (segments.length > 0) {
+					const steps = 20;
+					for (let s = 0; s < steps; s++) {
+						const t1 = s / steps;
+						const t2 = (s + 1) / steps;
+						const x1 = start.x + (end.x - start.x) * t1;
+						const y1 = start.y + (end.y - start.y) * t1;
+						const x2 = start.x + (end.x - start.x) * t2;
+						const y2 = start.y + (end.y - start.y) * t2;
+
+						const sampleIdx = Math.floor((i + t1) * (segments.length / (route.waypoints.length - 1)));
+						const seg = segments[Math.min(sampleIdx, segments.length - 1)];
+
+						let lineColor = '#22d3ee';
+						if (seg) {
+							if (seg.isBlocked) {
+								lineColor = '#ef4444';
+							} else if (!seg.isReachable) {
+								lineColor = '#f97316';
+							} else {
+								lineColor = getIntensityColor(seg.intensity);
+							}
+						}
+
+						const startNodeId = `route-${route.id}-seg-${i}-${s}-start`;
+						const endNodeId = `route-${route.id}-seg-${i}-${s}-end`;
+
+						elements.push({
+							group: 'nodes',
+							data: { id: startNodeId },
+							position: { x: x1, y: y1 },
+							style: { width: 1, height: 1, opacity: 0 }
+						});
+						elements.push({
+							group: 'nodes',
+							data: { id: endNodeId },
+							position: { x: x2, y: y2 },
+							style: { width: 1, height: 1, opacity: 0 }
+						});
+						elements.push({
+							group: 'edges',
+							data: {
+								id: `route-${route.id}-seg-${i}-${s}`,
+								source: startNodeId,
+								target: endNodeId,
+								routeId: route.id
+							},
+							style: {
+								'line-color': lineColor,
+								width: route.id === $activeRouteId ? 4 : 3,
+								'line-style': 'solid',
+								'target-arrow-shape': 'none',
+								'source-arrow-shape': 'none',
+								'curve-style': 'straight',
+								opacity: route.id === $activeRouteId ? 0.9 : 0.6,
+								'z-index': 20
+							}
+						});
+					}
+				} else {
+					const startNodeId = `route-${route.id}-start-${i}`;
+					const endNodeId = `route-${route.id}-end-${i}`;
+
+					elements.push({
+						group: 'nodes',
+						data: { id: startNodeId },
+						position: { x: start.x, y: start.y },
+						style: { width: 1, height: 1, opacity: 0 }
+					});
+					elements.push({
+						group: 'nodes',
+						data: { id: endNodeId },
+						position: { x: end.x, y: end.y },
+						style: { width: 1, height: 1, opacity: 0 }
+					});
+					elements.push({
+						group: 'edges',
+						data: {
+							id: `route-${route.id}-edge-${i}`,
+							source: startNodeId,
+							target: endNodeId,
+							routeId: route.id
+						},
+						style: {
+							'line-color': '#22d3ee',
+							width: route.id === $activeRouteId ? 4 : 3,
+							'line-style': 'solid',
+							'target-arrow-shape': 'none',
+							'source-arrow-shape': 'none',
+							'curve-style': 'straight',
+							opacity: route.id === $activeRouteId ? 0.9 : 0.6,
+							'z-index': 20
+						}
+					});
 				}
 			}
 
-			elements.push({
-				group: 'nodes',
-				data: {
-					id: `point-${p.id}`,
-					label: p.label,
-					type: p.type,
-					pointId: p.id
-				},
-				position: { x: p.x, y: p.y },
-				style: {
-					'background-color': getPointColor(p.type),
-					'border-color': borderColor,
-					'border-width': borderWidth,
-					label: 'data(label)',
-					'font-size': 10,
-					'text-valign': 'bottom',
-					'text-margin-y': 4,
-					'color': '#1f2937',
-					'text-outline-width': 2,
-					'text-outline-color': '#ffffff',
-					width: p.type === 'lighthouse' ? 32 : 22,
-					height: p.type === 'lighthouse' ? 32 : 22,
-					shape: p.type === 'lighthouse' ? 'star' : 'ellipse'
-				}
-			});
-		});
+			for (let i = 0; i < route.waypoints.length; i++) {
+				const wp = route.waypoints[i];
+				const isStart = i === 0;
+				const isEnd = i === route.waypoints.length - 1;
 
+				elements.push({
+					group: 'nodes',
+					data: {
+						id: `wp-${wp.id}`,
+						label: wp.label,
+						waypointId: wp.id,
+						routeId: route.id
+					},
+					position: { x: wp.x, y: wp.y },
+					style: {
+						'background-color': isStart ? '#22c55e' : isEnd ? '#ef4444' : '#22d3ee',
+						'border-color': route.id === $activeRouteId ? '#06b6d4' : '#0891b2',
+						'border-width': route.id === $activeRouteId ? 3 : 2,
+						width: isStart || isEnd ? 18 : 14,
+						height: isStart || isEnd ? 18 : 14,
+						shape: isStart ? 'triangle' : isEnd ? 'triangle' : 'diamond',
+						label: 'data(label)',
+						'font-size': 9,
+						'text-valign': 'bottom',
+						'text-margin-y': 3,
+						color: '#67e8f9',
+						'text-outline-width': 2,
+						'text-outline-color': '#0c4a6e',
+						'z-index': 50
+					}
+				});
+			}
+		}
+	}
+
+	function renderCliffs(elements: ElementDefinition[]) {
 		$cliffs.forEach((c) => {
 			elements.push({
 				group: 'edges',
@@ -102,7 +318,8 @@
 					'line-style': 'solid',
 					'target-arrow-shape': 'none',
 					'source-arrow-shape': 'none',
-					'curve-style': 'straight'
+					'curve-style': 'straight',
+					'z-index': 5
 				}
 			});
 			elements.push({
@@ -118,81 +335,84 @@
 				style: { width: 1, height: 1, opacity: 0 }
 			});
 		});
-
-		cy.add(elements);
-
-		renderSectorOverlay();
-		renderWindIndicator();
 	}
 
-	function renderSectorOverlay() {
-		if (!cy) return;
-		const lh = $lighthouse;
-		const sector = $propagationSector;
-		if (!lh || sector.length === 0) return;
+	function renderPoints(elements: ElementDefinition[]) {
+		$points.forEach((p) => {
+			const result = (p.type !== 'lighthouse' && p.type !== 'foghorn') ? getResultForPoint(p.id) : null;
+			let borderColor = '#ffffff';
+			let borderWidth = 2;
 
-		cy.getElementById('sector-overlay').remove();
+			const isSource = p.type === 'lighthouse' || p.type === 'foghorn';
+			const isEnabled = p.sourceParams?.enabled !== false;
 
-		let svgContent = '';
-		for (let i = 0; i < sector.length; i++) {
-			const sample = sector[i];
-			const nextSample = sector[(i + 1) % sector.length];
-			const color = getIntensityColor(sample.intensity);
+			if (isSource && !isEnabled) {
+				borderColor = '#6b7280';
+				borderWidth = 2;
+			} else if (result) {
+				if (result.isBlocked) {
+					borderColor = '#ef4444';
+					borderWidth = 4;
+				} else if (result.isReachable) {
+					borderColor = getIntensityColor(result.intensity);
+					borderWidth = 4;
+				}
+			}
 
-			const rad1 = ((90 - sample.angle) * Math.PI) / 180;
-			const rad2 = ((90 - nextSample.angle) * Math.PI) / 180;
-
-			const r = sample.maxDistance;
-			if (r <= 0) continue;
-
-			const x1 = lh.x + Math.cos(rad1) * r;
-			const y1 = lh.y + Math.sin(rad1) * r;
-			const x2 = lh.x + Math.cos(rad2) * r;
-			const y2 = lh.y + Math.sin(rad2) * r;
-
-			svgContent += `<path d="M ${lh.x} ${lh.y} L ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2} Z" fill="${color}" fill-opacity="0.15" stroke="${color}" stroke-opacity="0.4" stroke-width="1"/>`;
-		}
-
-		if (svgContent) {
-			try {
-				cy.add({
-					group: 'nodes',
-					data: { id: 'sector-overlay' },
-					position: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 },
-					style: {
-						width: CANVAS_WIDTH,
-						height: CANVAS_HEIGHT,
-						'background-image': `data:image/svg+xml;utf8,${encodeURIComponent(
-							`<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS_WIDTH}" height="${CANVAS_HEIGHT}" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}">${svgContent}</svg>`
-						)}`,
-						'background-width': '100%',
-						'background-height': '100%',
-						shape: 'rectangle',
-						opacity: 1,
-						'z-index': -10
-					}
-				});
-			} catch (_) {}
-		}
+			elements.push({
+				group: 'nodes',
+				data: {
+					id: `point-${p.id}`,
+					label: p.label,
+					type: p.type,
+					pointId: p.id,
+					isSource,
+					isEnabled
+				},
+				position: { x: p.x, y: p.y },
+				style: {
+					'background-color': getPointColor(p.type),
+					'border-color': borderColor,
+					'border-width': borderWidth,
+					label: 'data(label)',
+					'font-size': 10,
+					'text-valign': 'bottom',
+					'text-margin-y': 4,
+					'color': '#1f2937',
+					'text-outline-width': 2,
+					'text-outline-color': '#ffffff',
+					width: isSource ? 30 : 22,
+					height: isSource ? 30 : 22,
+					shape: getPointShape(p.type),
+					opacity: isSource && !isEnabled ? 0.4 : 1,
+					'z-index': 30
+				}
+			});
+		});
 	}
 
 	function renderWindIndicator() {
 		if (!cy) return;
-		const lh = $lighthouse;
-		if (!lh) return;
+		const sources = $soundSources;
+		if (sources.length === 0) return;
 
 		cy.getElementById('wind-indicator').remove();
+		cy.getElementById('wind-start').remove();
+		cy.getElementById('wind-end').remove();
+
+		const centerX = sources.reduce((sum, s) => sum + s.x, 0) / sources.length;
+		const centerY = sources.reduce((sum, s) => sum + s.y, 0) / sources.length;
 
 		const arrowLen = 50;
 		const rad = ((90 - $weather.windDirection) * Math.PI) / 180;
-		const endX = lh.x + Math.cos(rad) * arrowLen;
-		const endY = lh.y + Math.sin(rad) * arrowLen;
+		const endX = centerX + Math.cos(rad) * arrowLen;
+		const endY = centerY + Math.sin(rad) * arrowLen;
 
 		cy.add([
 			{
 				group: 'nodes',
 				data: { id: 'wind-start' },
-				position: { x: lh.x, y: lh.y },
+				position: { x: centerX, y: centerY },
 				style: { width: 1, height: 1, opacity: 0 }
 			},
 			{
@@ -297,8 +517,22 @@
 			return;
 		}
 
+		if (mode === 'editRoute') {
+			const activeRouteVal = $activeRoute;
+			if (!activeRouteVal) {
+				alerts.showErrors(['请先选择或创建一条航线。']);
+				return;
+			}
+
+			const wpNum = activeRouteVal.waypoints.length + 1;
+			routes.addWaypoint(activeRouteVal.id, x, y, `航点${wpNum}`);
+			alerts.showSuccess(`已添加航点${wpNum}`);
+			return;
+		}
+
 		const typeMap: Record<string, PointType> = {
 			addLighthouse: 'lighthouse',
+			addFoghorn: 'foghorn',
 			addCoast: 'coast',
 			addPort: 'port',
 			addShip: 'ship'
@@ -308,7 +542,7 @@
 		if (!type) return;
 
 		const nextNum = points.getNextNumber(type);
-		const label = type === 'lighthouse' ? `灯塔${nextNum}` : type === 'coast' ? `海岸${nextNum}` : type === 'port' ? `港口${nextNum}` : `船只${nextNum}`;
+		const label = type === 'lighthouse' ? `灯塔${nextNum}` : type === 'foghorn' ? `雾号${nextNum}` : type === 'coast' ? `海岸${nextNum}` : type === 'port' ? `港口${nextNum}` : `船只${nextNum}`;
 		const id = `${type}-${nextNum}`;
 
 		const result = points.addPoint({ type, x, y, label }, id);
@@ -350,8 +584,11 @@
 			const data = evt.target.data();
 			if (data.pointId) {
 				canvas.selectPoint(data.pointId);
-			} else if (data.cliffId) {
-				canvas.selectCliff(data.cliffId);
+			} else if (data.waypointId) {
+				canvas.selectWaypoint(data.waypointId);
+				if (data.routeId) {
+					activeRouteId.set(data.routeId);
+				}
 			}
 		});
 
@@ -359,6 +596,9 @@
 			const data = evt.target.data();
 			if (data.cliffId) {
 				canvas.selectCliff(data.cliffId);
+			} else if (data.routeId) {
+				activeRouteId.set(data.routeId);
+				canvas.selectRoute(data.routeId);
 			}
 		});
 
@@ -374,6 +614,8 @@
 					}
 					alerts.showErrors(result.errors);
 				}
+			} else if (data.waypointId && data.routeId) {
+				routes.moveWaypoint(data.routeId, data.waypointId, pos.x, pos.y);
 			}
 		});
 
@@ -423,6 +665,10 @@
 			<span class="text-[10px] text-white/50 font-body">灯塔</span>
 		</div>
 		<div class="flex items-center gap-1.5 px-2.5 py-1 bg-ocean-deep/80 backdrop-blur-sm rounded-lg shadow-lg shadow-black/30 border border-white/10">
+			<span class="w-0 h-0 border-l-[6px] border-r-[6px] border-b-[10px] border-l-transparent border-r-transparent border-b-orange-500"></span>
+			<span class="text-[10px] text-white/50 font-body">雾号</span>
+		</div>
+		<div class="flex items-center gap-1.5 px-2.5 py-1 bg-ocean-deep/80 backdrop-blur-sm rounded-lg shadow-lg shadow-black/30 border border-white/10">
 			<span class="w-3 h-3 rounded-full bg-blue-500"></span>
 			<span class="text-[10px] text-white/50 font-body">海岸</span>
 		</div>
@@ -441,6 +687,10 @@
 		<div class="flex items-center gap-1.5 px-2.5 py-1 bg-ocean-deep/80 backdrop-blur-sm rounded-lg shadow-lg shadow-black/30 border border-white/10">
 			<span class="text-sky-400 text-xs">→</span>
 			<span class="text-[10px] text-white/50 font-body">风向</span>
+		</div>
+		<div class="flex items-center gap-1.5 px-2.5 py-1 bg-ocean-deep/80 backdrop-blur-sm rounded-lg shadow-lg shadow-black/30 border border-white/10">
+			<span class="w-3 h-3 rotate-45 bg-cyan-400"></span>
+			<span class="text-[10px] text-white/50 font-body">航线</span>
 		</div>
 	</div>
 

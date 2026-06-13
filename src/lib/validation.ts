@@ -1,4 +1,4 @@
-import type { Point, Cliff, WeatherParams, SavedScenario } from './types';
+import type { Point, Cliff, WeatherParams, SavedScenario, Route } from './types';
 
 export interface ValidationResult {
 	valid: boolean;
@@ -141,7 +141,8 @@ export function saveScenario(
 	name: string,
 	points: Point[],
 	cliffs: Cliff[],
-	weather: WeatherParams
+	weather: WeatherParams,
+	routes: Route[] = []
 ): SavedScenario {
 	const scenario: SavedScenario = {
 		id: `scenario-${Date.now()}`,
@@ -149,7 +150,8 @@ export function saveScenario(
 		createdAt: Date.now(),
 		points: JSON.parse(JSON.stringify(points)),
 		cliffs: JSON.parse(JSON.stringify(cliffs)),
-		weather: { ...weather }
+		weather: { ...weather },
+		routes: JSON.parse(JSON.stringify(routes))
 	};
 
 	const saved = loadAllScenarios();
@@ -162,7 +164,11 @@ export function loadAllScenarios(): SavedScenario[] {
 	try {
 		const raw = localStorage.getItem(STORAGE_KEY);
 		if (!raw) return [];
-		return JSON.parse(raw);
+		const parsed = JSON.parse(raw);
+		return parsed.map((s: any) => ({
+			...s,
+			routes: s.routes ?? []
+		}));
 	} catch {
 		return [];
 	}
@@ -188,6 +194,10 @@ export function importScenario(json: string): { scenario: SavedScenario | null; 
 		if (!Array.isArray(parsed.cliffs)) errors.push('方案缺少 cliffs 数组。');
 		if (!parsed.weather) errors.push('方案缺少 weather 字段。');
 
+		if (!Array.isArray(parsed.routes)) {
+			parsed.routes = [];
+		}
+
 		if (errors.length > 0) {
 			return { scenario: null, errors };
 		}
@@ -204,6 +214,13 @@ export function importScenario(json: string): { scenario: SavedScenario | null; 
 		if (cliffIds.length !== uniqueCliffIds.size) {
 			const duplicates = cliffIds.filter((id: string, i: number) => cliffIds.indexOf(id) !== i);
 			errors.push(`方案中存在重复的岩壁编号：${[...new Set(duplicates)].join('、')}`);
+		}
+
+		const routeIds = parsed.routes.map((r: any) => r.id);
+		const uniqueRouteIds = new Set(routeIds);
+		if (routeIds.length !== uniqueRouteIds.size) {
+			const duplicates = routeIds.filter((id: string, i: number) => routeIds.indexOf(id) !== i);
+			errors.push(`方案中存在重复的航线编号：${[...new Set(duplicates)].join('、')}`);
 		}
 
 		if (errors.length > 0) {

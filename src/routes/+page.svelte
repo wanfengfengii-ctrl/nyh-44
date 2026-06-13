@@ -5,6 +5,9 @@
 	import PropagationInfo from '$lib/components/PropagationInfo.svelte';
 	import ScenarioPanel from '$lib/components/ScenarioPanel.svelte';
 	import IntensityChart from '$lib/components/IntensityChart.svelte';
+	import RoutePanel from '$lib/components/RoutePanel.svelte';
+	import RouteAnalysisPanel from '$lib/components/RouteAnalysisPanel.svelte';
+	import AlertToast from '$lib/components/AlertToast.svelte';
 
 	let currentTime = $state('');
 
@@ -24,7 +27,7 @@
 	<div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_80%_80%,rgba(255,215,0,0.06)_0%,transparent_50%)]"></div>
 
 	<header class="sticky top-0 z-50 border-b border-white/10 bg-primary-dark/80 backdrop-blur-xl">
-		<div class="mx-auto max-w-[1600px] px-6 py-3">
+		<div class="mx-auto max-w-[1800px] px-6 py-3">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-4">
 					<div class="relative flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-accent to-lighthouse-glow shadow-lg shadow-accent/30">
@@ -33,10 +36,10 @@
 					</div>
 					<div>
 						<h1 class="font-display text-xl font-bold tracking-wide text-accent drop-shadow-[0_0_12px_rgba(255,215,0,0.4)]">
-							沿海灯塔钟声传播模拟器
+							多声源协同传播与航线风险预警系统
 						</h1>
 						<p class="text-[11px] tracking-widest text-sea-fog/80 uppercase">
-							声学传播路径可视化分析工具
+							沿海灯塔钟声 · 声学传播路径 · 航线安全分析
 						</p>
 					</div>
 				</div>
@@ -54,12 +57,12 @@
 		</div>
 	</header>
 
-	<main class="relative z-10 mx-auto max-w-[1600px] px-6 py-5">
+	<main class="relative z-10 mx-auto max-w-[1800px] px-6 py-5">
 		<div class="grid grid-cols-12 gap-4">
 
 			<aside class="col-span-12 lg:col-span-3 space-y-4">
 				<PointsPanel />
-				<PropagationInfo />
+				<RoutePanel />
 			</aside>
 
 			<section class="col-span-12 lg:col-span-6">
@@ -82,6 +85,8 @@
 
 			<aside class="col-span-12 lg:col-span-3 space-y-4">
 				<WeatherPanel />
+				<PropagationInfo />
+				<RouteAnalysisPanel />
 				<IntensityChart />
 				<ScenarioPanel />
 			</aside>
@@ -95,29 +100,31 @@
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
 				<div class="flex gap-3 rounded-lg bg-white/[0.03] p-3 border border-white/5 transition-all hover:bg-white/[0.06] hover:border-accent/20">
 					<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ocean-surface/15 text-sm font-bold text-ocean-surface">1</span>
-					<p class="text-xs leading-relaxed text-sea-fog/70">选择左侧工具栏中的点位类型，在画布上点击放置灯塔、海岸、港口或船只位置。</p>
+					<p class="text-xs leading-relaxed text-sea-fog/70">在左侧工具栏选择声源类型（灯塔/雾号），在画布上点击放置多个声源，可单独设置频率与声级。</p>
 				</div>
 				<div class="flex gap-3 rounded-lg bg-white/[0.03] p-3 border border-white/5 transition-all hover:bg-white/[0.06] hover:border-accent/20">
 					<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ocean-surface/15 text-sm font-bold text-ocean-surface">2</span>
-					<p class="text-xs leading-relaxed text-sea-fog/70">选择岩壁工具，在画布上点击两次绘制岩壁线段，岩壁会遮挡声音传播。</p>
+					<p class="text-xs leading-relaxed text-sea-fog/70">使用岩壁工具绘制遮挡地形，岩壁会对声波产生遮蔽效应，形成声影盲区。</p>
 				</div>
 				<div class="flex gap-3 rounded-lg bg-white/[0.03] p-3 border border-white/5 transition-all hover:bg-white/[0.06] hover:border-accent/20">
 					<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ocean-surface/15 text-sm font-bold text-ocean-surface">3</span>
-					<p class="text-xs leading-relaxed text-sea-fog/70">调整右侧天气参数面板中的风向、风速、湿度和频率，观察传播范围实时变化。</p>
+					<p class="text-xs leading-relaxed text-sea-fog/70">创建航线并在画布上设置航点，系统自动计算航线各段的声强变化与风险预警。</p>
 				</div>
 				<div class="flex gap-3 rounded-lg bg-white/[0.03] p-3 border border-white/5 transition-all hover:bg-white/[0.06] hover:border-accent/20">
 					<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ocean-surface/15 text-sm font-bold text-ocean-surface">4</span>
-					<p class="text-xs leading-relaxed text-sea-fog/70">使用方案管理功能保存和加载你的设计方案，支持 JSON 格式导入导出。</p>
+					<p class="text-xs leading-relaxed text-sea-fog/70">调整天气参数观察传播变化，保存方案时自动记录所有声源、障碍物、航线及天气条件。</p>
 				</div>
 			</div>
 		</div>
 	</main>
 
 	<footer class="relative z-10 border-t border-white/5 mt-6 py-5">
-		<div class="mx-auto max-w-[1600px] px-6 text-center">
+		<div class="mx-auto max-w-[1800px] px-6 text-center">
 			<p class="text-[11px] tracking-wider text-sea-fog/40">
-				基于声学传播模型 · 考虑大气衰减、风速影响和障碍物遮蔽效应 · 沿海灯塔钟声传播模拟系统
+				多声源协同传播模型 · 考虑大气衰减、风速影响、障碍物遮蔽与叠加效应 · 航线安全风险预警系统
 			</p>
 		</div>
 	</footer>
+
+	<AlertToast />
 </div>

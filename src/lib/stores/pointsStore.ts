@@ -1,6 +1,12 @@
 import { writable, derived } from 'svelte/store';
-import type { Point } from '../types';
+import type { Point, SoundSourceParams } from '../types';
 import { validatePointIdUnique, checkPointOverlap } from '../validation';
+
+const DEFAULT_SOURCE_PARAMS: SoundSourceParams = {
+	frequency: 500,
+	sourceLevel: 80,
+	enabled: true
+};
 
 function createPointsStore() {
 	const { subscribe, set, update } = writable<Point[]>([]);
@@ -11,16 +17,12 @@ function createPointsStore() {
 		let currentPoints: Point[] = [];
 		subscribe((p) => (currentPoints = p))();
 
-		const pointsToCheck = point.type === 'lighthouse'
-			? currentPoints.filter((p) => p.type !== 'lighthouse')
-			: currentPoints;
-
-		const idResult = validatePointIdUnique(pointsToCheck, id);
+		const idResult = validatePointIdUnique(currentPoints, id);
 		if (!idResult.valid) {
 			errors = [...errors, ...idResult.errors];
 		}
 
-		const overlapResult = checkPointOverlap(pointsToCheck, point);
+		const overlapResult = checkPointOverlap(currentPoints, point);
 		if (!overlapResult.valid) {
 			errors = [...errors, ...overlapResult.errors];
 		}
@@ -29,13 +31,12 @@ function createPointsStore() {
 			return { success: false, errors };
 		}
 
-		update((points) => {
-			let filtered = points;
-			if (point.type === 'lighthouse') {
-				filtered = points.filter((p) => p.type !== 'lighthouse');
-			}
-			return [...filtered, { ...point, id }];
-		});
+		let enrichedPoint = { ...point, id };
+		if (point.type === 'lighthouse' || point.type === 'foghorn') {
+			enrichedPoint.sourceParams = point.sourceParams ?? { ...DEFAULT_SOURCE_PARAMS };
+		}
+
+		update((points) => [...points, enrichedPoint]);
 
 		return { success: true, errors: [] };
 	}
@@ -83,6 +84,23 @@ function createPointsStore() {
 		return updated;
 	}
 
+	function updateSourceParams(id: string, params: Partial<SoundSourceParams>): boolean {
+		return updatePoint(id, {
+			sourceParams: { ...DEFAULT_SOURCE_PARAMS, ...params }
+		});
+	}
+
+	function toggleSourceEnabled(id: string): boolean {
+		let result = false;
+		let currentPoints: Point[] = [];
+		subscribe((p) => (currentPoints = p))();
+		const point = currentPoints.find((p) => p.id === id);
+		if (point && point.sourceParams) {
+			result = updateSourceParams(id, { enabled: !point.sourceParams.enabled });
+		}
+		return result;
+	}
+
 	function removePoint(id: string): void {
 		update((points) => points.filter((p) => p.id !== id));
 	}
@@ -91,10 +109,11 @@ function createPointsStore() {
 		set([]);
 	}
 
-	function getUsedNumbers(): number[] {
+	function getUsedNumbers(type?: Point['type']): number[] {
 		let numbers: number[] = [];
 		subscribe((points) => {
 			numbers = points
+				.filter((p) => !type || p.type === type)
 				.map((p) => {
 					const match = p.label.match(/\d+/);
 					return match ? parseInt(match[0]) : NaN;
@@ -105,7 +124,7 @@ function createPointsStore() {
 	}
 
 	function getNextNumber(type: Point['type']): number {
-		const used = getUsedNumbers();
+		const used = getUsedNumbers(type);
 		let n = 1;
 		while (used.includes(n)) n++;
 		return n;
@@ -117,6 +136,8 @@ function createPointsStore() {
 		addPoint,
 		movePoint,
 		updatePoint,
+		updateSourceParams,
+		toggleSourceEnabled,
 		removePoint,
 		clearPoints,
 		getUsedNumbers,
@@ -126,8 +147,30 @@ function createPointsStore() {
 
 export const points = createPointsStore();
 
-export const lighthouse = derived(points, ($points) => $points.find((p) => p.type === 'lighthouse'));
-
-export const nonLighthousePoints = derived(points, ($points) =>
-	$points.filter((p) => p.type !== 'lighthouse')
+export const soundSources = derived(points, ($points) =>
+	$points.filter(
+		(p) =>
+			(p.type === 'lighthouse' || p.type === 'foghorn') && p.sourceParams?.enabled !== false
+	)
 );
+
+export const allSources = derived(points, ($points) =>
+	$points.filter((p) => p.type === 'lighthouse' || p.type === 'foghorn')
+);
+
+export const targetPoints = derived(points, ($points) =>
+	$points.filter((p) => p.type !== 'lighthouse' && p.type !== 'foghorn')
+);
+
+export const lighthouse = derived(points, ($points) => {
+	const sources = $points.filter(
+		(p) => p.type === 'lighthouse' && p.sourceParams?.enabled !== false
+	);
+	return sources.length > 0 ? sources[0] : null;
+});
+
+export const nonLighthousePoints = targetPoints;
+
+export const enabledSourcesCount = derived(soundSources, ($s) => $s.length);
+
+export const totalSourcesCount = derived(allSources, ($s) => $s.length);

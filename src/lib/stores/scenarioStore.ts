@@ -3,6 +3,7 @@ import type { SavedScenario } from '../types';
 import { points } from './pointsStore';
 import { cliffs } from './cliffsStore';
 import { weather } from './weatherStore';
+import { routes } from './routesStore';
 import { saveScenario, loadAllScenarios, deleteScenario, importScenario, exportScenario } from '../validation';
 import { alerts } from './alertsStore';
 
@@ -17,13 +18,14 @@ function createScenarioStore() {
 		const currentPoints = get(points);
 		const currentCliffs = get(cliffs);
 		const currentWeather = get(weather);
+		const currentRoutes = get(routes);
 
 		if (!name.trim()) {
 			alerts.showErrors(['请输入方案名称。']);
 			return null;
 		}
 
-		const scenario = saveScenario(name.trim(), currentPoints, currentCliffs, currentWeather);
+		const scenario = saveScenario(name.trim(), currentPoints, currentCliffs, currentWeather, currentRoutes);
 		alerts.showSuccess(`方案 "${scenario.name}" 已保存。`);
 		refresh();
 		return scenario;
@@ -33,6 +35,7 @@ function createScenarioStore() {
 		points.set(scenario.points);
 		cliffs.set(scenario.cliffs);
 		weather.set(scenario.weather);
+		routes.set(scenario.routes ?? []);
 		alerts.showSuccess(`方案 "${scenario.name}" 已加载。`);
 	}
 
@@ -68,6 +71,7 @@ function createScenarioStore() {
 		points.clearPoints();
 		cliffs.clearCliffs();
 		weather.reset();
+		routes.clearRoutes();
 		alerts.showInfo('画布已清空。');
 	}
 
