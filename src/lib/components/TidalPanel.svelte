@@ -2,17 +2,12 @@
 	import { temporal, TIDAL_PHASES, SEA_STATES, TIME_OF_DAY } from '$lib/stores/tidalStore';
 	import { temporalFactors } from '$lib/stores/propagationStore';
 
-	let $temporal = $temporal;
-	let $factors = $temporalFactors;
+	let temporalParams = $derived($temporal);
+	let factors = $derived($temporalFactors);
 
-	$effect(() => {
-		$temporal = $temporal;
-		$factors = $temporalFactors;
-	});
-
-	let timeOfDayLabel = $derived(TIME_OF_DAY.find(t => t.value === $temporal.dayTime.timeOfDay)?.label ?? '');
-	let seaStateLabel = $derived(SEA_STATES.find(s => s.value === $temporal.seaSurface.seaState)?.label ?? '');
-	let tidalPhaseLabel = $derived(TIDAL_PHASES.find(p => p.value === $temporal.tidal.tidalPhase)?.label ?? '');
+	let timeOfDayLabel = $derived(TIME_OF_DAY.find(t => t.value === temporalParams.dayTime.timeOfDay)?.label ?? '');
+	let seaStateLabel = $derived(SEA_STATES.find(s => s.value === temporalParams.seaSurface.seaState)?.label ?? '');
+	let tidalPhaseLabel = $derived(TIDAL_PHASES.find(p => p.value === temporalParams.tidal.tidalPhase)?.label ?? '');
 </script>
 
 <div class="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-4">
@@ -24,15 +19,15 @@
 		<div>
 			<div class="flex justify-between mb-2">
 				<label class="text-sm font-body font-medium text-white/70">潮位高度 (m)</label>
-				<span class="text-sm text-cyan-400 font-body">{$temporal.tidal.tideLevel.toFixed(2)} / {$temporal.tidal.tidalRange.toFixed(1)}</span>
+				<span class="text-sm text-cyan-400 font-body">{temporalParams.tidal.tideLevel.toFixed(2)} / {temporalParams.tidal.tidalRange.toFixed(1)}</span>
 			</div>
 			<input
 				type="range"
 				min="0"
-				max={Math.max($temporal.tidal.tidalRange, 0.1)}
+				max={Math.max(temporalParams.tidal.tidalRange, 0.1)}
 				step="0.01"
-				bind:value={$temporal.tidal.tideLevel}
-				oninput={() => temporal.updateTidal({ tideLevel: $temporal.tidal.tideLevel })}
+				bind:value={temporalParams.tidal.tideLevel}
+				oninput={() => temporal.updateTidal({ tideLevel: temporalParams.tidal.tideLevel })}
 				class="w-full accent-cyan-400"
 			/>
 		</div>
@@ -44,7 +39,7 @@
 					<button
 						onclick={() => temporal.setTidalPhase(phase.value)}
 						class="px-2 py-1.5 text-xs rounded-lg border font-body transition-all duration-200 flex flex-col items-center gap-0.5 {
-							$temporal.tidal.tidalPhase === phase.value
+							temporalParams.tidal.tidalPhase === phase.value
 								? 'border-cyan-400 bg-cyan-400/20 text-cyan-400'
 								: 'border-white/10 text-white/50 hover:bg-white/5 hover:text-white/70'
 						}"
@@ -60,15 +55,15 @@
 		<div>
 			<div class="flex justify-between mb-2">
 				<label class="text-sm font-body font-medium text-white/70">潮差范围 (m)</label>
-				<span class="text-sm text-cyan-400 font-body">{$temporal.tidal.tidalRange.toFixed(1)}</span>
+				<span class="text-sm text-cyan-400 font-body">{temporalParams.tidal.tidalRange.toFixed(1)}</span>
 			</div>
 			<input
 				type="range"
 				min="0.5"
 				max="8"
 				step="0.1"
-				bind:value={$temporal.tidal.tidalRange}
-				oninput={() => temporal.updateTidal({ tidalRange: $temporal.tidal.tidalRange })}
+				bind:value={temporalParams.tidal.tidalRange}
+				oninput={() => temporal.updateTidal({ tidalRange: temporalParams.tidal.tidalRange })}
 				class="w-full accent-cyan-400"
 			/>
 		</div>
@@ -76,15 +71,15 @@
 		<div>
 			<div class="flex justify-between mb-2">
 				<label class="text-sm font-body font-medium text-white/70">潮流速度 (m/s)</label>
-				<span class="text-sm text-cyan-400 font-body">{$temporal.tidal.tidalCurrentSpeed.toFixed(2)}</span>
+				<span class="text-sm text-cyan-400 font-body">{temporalParams.tidal.tidalCurrentSpeed.toFixed(2)}</span>
 			</div>
 			<input
 				type="range"
 				min="0"
 				max="5"
 				step="0.05"
-				bind:value={$temporal.tidal.tidalCurrentSpeed}
-				oninput={() => temporal.updateTidal({ tidalCurrentSpeed: $temporal.tidal.tidalCurrentSpeed })}
+				bind:value={temporalParams.tidal.tidalCurrentSpeed}
+				oninput={() => temporal.updateTidal({ tidalCurrentSpeed: temporalParams.tidal.tidalCurrentSpeed })}
 				class="w-full accent-cyan-400"
 			/>
 		</div>
@@ -98,7 +93,7 @@
 					<button
 						onclick={() => temporal.setSeaState(state.value)}
 						class="px-1.5 py-1.5 text-[10px] rounded-lg border font-body transition-all duration-200 {
-							$temporal.seaSurface.seaState === state.value
+							temporalParams.seaSurface.seaState === state.value
 								? 'border-amber-400 bg-amber-400/20 text-amber-400'
 								: 'border-white/10 text-white/50 hover:bg-white/5 hover:text-white/70'
 						}"
@@ -113,15 +108,15 @@
 		<div>
 			<div class="flex justify-between mb-2">
 				<label class="text-sm font-body font-medium text-white/70">浪高 (m)</label>
-				<span class="text-sm text-amber-400 font-body">{$temporal.seaSurface.waveHeight.toFixed(2)}</span>
+				<span class="text-sm text-amber-400 font-body">{temporalParams.seaSurface.waveHeight.toFixed(2)}</span>
 			</div>
 			<input
 				type="range"
 				min="0"
 				max="9"
 				step="0.05"
-				bind:value={$temporal.seaSurface.waveHeight}
-				oninput={() => temporal.updateSeaSurface({ waveHeight: $temporal.seaSurface.waveHeight })}
+				bind:value={temporalParams.seaSurface.waveHeight}
+				oninput={() => temporal.updateSeaSurface({ waveHeight: temporalParams.seaSurface.waveHeight })}
 				class="w-full accent-amber-400"
 			/>
 		</div>
@@ -131,15 +126,15 @@
 		<div>
 			<div class="flex justify-between mb-2">
 				<label class="text-sm font-body font-medium text-white/70">时刻 (24h)</label>
-				<span class="text-sm text-indigo-400 font-body">{Math.floor($temporal.dayTime.hourOfDay).toString().padStart(2, '0')}:{Math.floor(($temporal.dayTime.hourOfDay % 1) * 60).toString().padStart(2, '0')} · {timeOfDayLabel}</span>
+				<span class="text-sm text-indigo-400 font-body">{Math.floor(temporalParams.dayTime.hourOfDay).toString().padStart(2, '0')}:{Math.floor((temporalParams.dayTime.hourOfDay % 1) * 60).toString().padStart(2, '0')} · {timeOfDayLabel}</span>
 			</div>
 			<input
 				type="range"
 				min="0"
 				max="23.99"
 				step="0.0833"
-				bind:value={$temporal.dayTime.hourOfDay}
-				oninput={() => temporal.setHourOfDay($temporal.dayTime.hourOfDay)}
+				bind:value={temporalParams.dayTime.hourOfDay}
+				oninput={() => temporal.setHourOfDay(temporalParams.dayTime.hourOfDay)}
 				class="w-full accent-indigo-400"
 			/>
 		</div>
@@ -151,7 +146,7 @@
 					<button
 						onclick={() => temporal.setHourOfDay((tod.hourRange[0] + tod.hourRange[1]) / 2)}
 						class="px-1 py-1.5 text-[10px] rounded-lg border font-body transition-all duration-200 {
-							$temporal.dayTime.timeOfDay === tod.value
+							temporalParams.dayTime.timeOfDay === tod.value
 								? 'border-indigo-400 bg-indigo-400/20 text-indigo-400'
 								: 'border-white/10 text-white/50 hover:bg-white/5 hover:text-white/70'
 						}"
@@ -166,15 +161,15 @@
 		<div>
 			<div class="flex justify-between mb-2">
 				<label class="text-sm font-body font-medium text-white/70">环境噪声 (dB)</label>
-				<span class="text-sm text-indigo-400 font-body">{$temporal.dayTime.ambientNoise.toFixed(0)}</span>
+				<span class="text-sm text-indigo-400 font-body">{temporalParams.dayTime.ambientNoise.toFixed(0)}</span>
 			</div>
 			<input
 				type="range"
 				min="30"
 				max="90"
 				step="1"
-				bind:value={$temporal.dayTime.ambientNoise}
-				oninput={() => temporal.updateDayTime({ ambientNoise: $temporal.dayTime.ambientNoise })}
+				bind:value={temporalParams.dayTime.ambientNoise}
+				oninput={() => temporal.updateDayTime({ ambientNoise: temporalParams.dayTime.ambientNoise })}
 				class="w-full accent-indigo-400"
 			/>
 		</div>
@@ -186,23 +181,23 @@
 			<div class="grid grid-cols-2 gap-2 text-[11px]">
 				<div class="flex justify-between">
 					<span class="text-white/50">潮位系数</span>
-					<span class="text-cyan-300 font-mono">{$factors.tideIntensityMultiplier.toFixed(3)}</span>
+					<span class="text-cyan-300 font-mono">{factors.tideIntensityMultiplier.toFixed(3)}</span>
 				</div>
 				<div class="flex justify-between">
 					<span class="text-white/50">海浪衰减</span>
-					<span class="text-amber-300 font-mono">-{$factors.waveNoisePenaltyDb.toFixed(1)}dB</span>
+					<span class="text-amber-300 font-mono">-{factors.waveNoisePenaltyDb.toFixed(1)}dB</span>
 				</div>
 				<div class="flex justify-between">
 					<span class="text-white/50">环境衰减</span>
-					<span class="text-indigo-300 font-mono">-{$factors.ambientNoisePenaltyDb.toFixed(1)}dB</span>
+					<span class="text-indigo-300 font-mono">-{factors.ambientNoisePenaltyDb.toFixed(1)}dB</span>
 				</div>
 				<div class="flex justify-between">
 					<span class="text-white/50">总dB修正</span>
-					<span class="text-white/90 font-mono {$factors.totalDbAdjustment >= 0 ? 'text-emerald-400' : 'text-red-400'}">{$factors.totalDbAdjustment >= 0 ? '+' : ''}{$factors.totalDbAdjustment.toFixed(1)}dB</span>
+					<span class="text-white/90 font-mono {factors.totalDbAdjustment >= 0 ? 'text-emerald-400' : 'text-red-400'}">{factors.totalDbAdjustment >= 0 ? '+' : ''}{factors.totalDbAdjustment.toFixed(1)}dB</span>
 				</div>
 				<div class="col-span-2 flex justify-between border-t border-white/5 pt-2">
 					<span class="text-white/50">可达阈值</span>
-					<span class="text-accent font-mono font-bold">{$factors.effectiveThresholdDb.toFixed(1)}dB</span>
+					<span class="text-accent font-mono font-bold">{factors.effectiveThresholdDb.toFixed(1)}dB</span>
 				</div>
 			</div>
 		</div>
@@ -210,7 +205,7 @@
 		<div>
 			<div class="flex justify-between mb-2">
 				<label class="text-sm font-body font-medium text-white/70">模拟时长 (小时)</label>
-				<span class="text-sm text-white/80 font-body">{$temporal.totalSimulatedHours}h · 步长 {$temporal.timeStep.toFixed(1)}h</span>
+				<span class="text-sm text-white/80 font-body">{temporalParams.totalSimulatedHours}h · 步长 {temporalParams.timeStep.toFixed(1)}h</span>
 			</div>
 			<div class="flex gap-2">
 				<input
@@ -218,8 +213,8 @@
 					min="6"
 					max="72"
 					step="6"
-					bind:value={$temporal.totalSimulatedHours}
-					oninput={() => temporal.update({ totalSimulatedHours: $temporal.totalSimulatedHours })}
+					bind:value={temporalParams.totalSimulatedHours}
+					oninput={() => temporal.update({ totalSimulatedHours: temporalParams.totalSimulatedHours })}
 					class="flex-1 accent-white"
 				/>
 			</div>
@@ -228,7 +223,7 @@
 					<button
 						onclick={() => temporal.update({ timeStep: step })}
 						class="flex-1 px-1 py-1 text-[10px] rounded border font-body transition-all duration-200 {
-							$temporal.timeStep === step
+							temporalParams.timeStep === step
 								? 'border-white/40 bg-white/10 text-white'
 								: 'border-white/10 text-white/40 hover:bg-white/5 hover:text-white/60'
 						}"

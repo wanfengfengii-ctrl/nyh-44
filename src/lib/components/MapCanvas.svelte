@@ -36,7 +36,7 @@
 	let effectiveActiveRouteAnalysis = $derived(
 		temporalModeEnabled ? $temporalActiveRouteAnalysis : $activeRouteAnalysis
 	);
-	let currentSnap = $currentSnapshot;
+	let currentSnap = $derived($currentSnapshot);
 
 	let modeLabel = $derived.by(() => {
 		const mode = $canvas.mode;

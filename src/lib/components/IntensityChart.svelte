@@ -4,6 +4,7 @@
 	import { propagationSector, temporalPropagationSector, getIntensityColor } from '$lib/stores/propagationStore';
 	import { weather } from '$lib/stores/weatherStore';
 	import { soundSources } from '$lib/stores/pointsStore';
+	import { temporal } from '$lib/stores/tidalStore';
 
 	Chart.register(...registerables);
 

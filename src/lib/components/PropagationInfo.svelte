@@ -3,6 +3,7 @@
 	import { targetPoints, soundSources, allSources } from '$lib/stores/pointsStore';
 	import { weather } from '$lib/stores/weatherStore';
 	import { routes } from '$lib/stores/routesStore';
+	import { temporal, tidalAttenuationFactor } from '$lib/stores/tidalStore';
 
 	let temporalMode = $state(false);
 
@@ -15,7 +16,8 @@
 	let effectiveRisk = $derived(
 		temporalMode ? $temporalTotalRiskCount : $totalRiskCount
 	);
-	let $factors = $temporalFactors;
+	let factors = $derived($temporalFactors);
+	let attenuation = $derived($tidalAttenuationFactor);
 </script>
 
 <div class="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-4">
@@ -82,23 +84,23 @@
 				<div class="grid grid-cols-2 gap-1.5 text-[11px]">
 					<div class="flex justify-between">
 						<span class="text-white/40">潮位系数</span>
-						<span class="text-cyan-300 font-mono">{$factors.tideIntensityMultiplier.toFixed(3)}</span>
+						<span class="text-cyan-300 font-mono">{factors.tideIntensityMultiplier.toFixed(3)}</span>
 					</div>
 					<div class="flex justify-between">
 						<span class="text-white/40">海浪衰减</span>
-						<span class="text-amber-300 font-mono">-{$factors.waveNoisePenaltyDb.toFixed(1)}dB</span>
+						<span class="text-amber-300 font-mono">-{factors.waveNoisePenaltyDb.toFixed(1)}dB</span>
 					</div>
 					<div class="flex justify-between">
 						<span class="text-white/40">环境衰减</span>
-						<span class="text-indigo-300 font-mono">-{$factors.ambientNoisePenaltyDb.toFixed(1)}dB</span>
+						<span class="text-indigo-300 font-mono">-{factors.ambientNoisePenaltyDb.toFixed(1)}dB</span>
 					</div>
 					<div class="flex justify-between">
 						<span class="text-white/40">总dB修正</span>
-						<span class="font-mono {$factors.totalDbAdjustment >= 0 ? 'text-emerald-400' : 'text-red-400'}">{$factors.totalDbAdjustment >= 0 ? '+' : ''}{$factors.totalDbAdjustment.toFixed(1)}dB</span>
+						<span class="font-mono {factors.totalDbAdjustment >= 0 ? 'text-emerald-400' : 'text-red-400'}">{factors.totalDbAdjustment >= 0 ? '+' : ''}{factors.totalDbAdjustment.toFixed(1)}dB</span>
 					</div>
 					<div class="col-span-2 flex justify-between border-t border-white/5 pt-1.5">
 						<span class="text-white/40">可达阈值</span>
-						<span class="text-accent font-mono font-bold">{$factors.effectiveThresholdDb.toFixed(1)}dB</span>
+						<span class="text-accent font-mono font-bold">{factors.effectiveThresholdDb.toFixed(1)}dB</span>
 					</div>
 				</div>
 			</div>

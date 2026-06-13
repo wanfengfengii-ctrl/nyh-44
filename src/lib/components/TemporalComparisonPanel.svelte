@@ -3,16 +3,13 @@
 	import { temporal, TIDAL_PHASES, SEA_STATES, TIME_OF_DAY } from '$lib/stores/tidalStore';
 	import { getRiskColor, getIntensityColor } from '$lib/acoustics';
 	import type { MultiSourceSectorSample } from '$lib/acoustics';
+	import type { ComparisonTimePoint } from '$lib/types';
 
-	let $comparison = $comparisonSnapshotsData;
-	let $series = $temporalMetricsSeries;
-	let $comparisonPoints = $temporal.comparisonPoints;
+	const { comparisonPoints: comparisonPointsStore } = temporal;
 
-	$effect(() => {
-		$comparison = $comparisonSnapshotsData;
-		$series = $temporalMetricsSeries;
-		$comparisonPoints = $temporal.comparisonPoints;
-	});
+	let comparison = $derived($comparisonSnapshotsData);
+	let series = $derived($temporalMetricsSeries);
+	let comparisonPoints = $derived($comparisonPointsStore);
 
 	const comparisonColors = ['#fbbf24', '#3b82f6', '#a855f7', '#ec4899'];
 
@@ -21,8 +18,8 @@
 	}
 
 	function getComparisonList() {
-		return Array.from($comparison.entries()).map(([idx, data]) => {
-			const cp = $comparisonPoints.find(p => p.timeIndex === idx);
+		return Array.from(comparison.entries()).map(([idx, data]) => {
+			const cp = comparisonPoints.find((p: ComparisonTimePoint) => p.timeIndex === idx);
 			return { idx, data, cp, orderInList: 0 };
 		});
 	}
@@ -65,7 +62,7 @@
 		<span class="text-amber-400">🔀</span> 关键时段对比分析
 	</h3>
 
-	{#if $comparison.size === 0}
+	{#if comparison.size === 0}
 		<div class="text-center py-8 text-white/40 text-sm">
 			<div class="text-3xl mb-2 opacity-50">📌</div>
 			<p class="mb-1">尚未钉选任何时刻</p>
@@ -74,8 +71,8 @@
 	{:else}
 		<div class="space-y-5">
 			<div class="grid grid-cols-1 gap-3">
-				{#each Array.from($comparison.entries()) as [idx, data], i}
-					{@const cp = $comparisonPoints.find(p => p.timeIndex === idx)}
+				{#each Array.from(comparison.entries()) as [idx, data], i}
+					{@const cp = comparisonPoints.find((p: ComparisonTimePoint) => p.timeIndex === idx)}
 					<div class="rounded-lg p-3 border transition-all hover:bg-white/[0.04]" style="border-color: {getColor(i)}30; background: linear-gradient(135deg, {getColor(i)}08, transparent);">
 						<div class="flex items-center justify-between mb-2">
 							<div class="flex items-center gap-2">
@@ -132,7 +129,7 @@
 						<line x1="120" y1="15" x2="120" y2="225" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
 						<line x1="15" y1="120" x2="225" y2="120" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
 
-						{#each Array.from($comparison.entries()) as [idx, data], i}
+						{#each Array.from(comparison.entries()) as [idx, data], i}
 							{#if data.sectorData.length > 0}
 								<path
 									d={getSectorRingPath(data.sectorData, 0.25).replace(/60/g, '120')}
@@ -149,8 +146,8 @@
 					</svg>
 
 					<div class="absolute bottom-0 left-0 right-0 flex flex-wrap justify-center gap-2 mt-2">
-						{#each Array.from($comparison.entries()) as [idx, data], i}
-							{@const cp = $comparisonPoints.find(p => p.timeIndex === idx)}
+						{#each Array.from(comparison.entries()) as [idx, data], i}
+							{@const cp = comparisonPoints.find(p => p.timeIndex === idx)}
 							<div class="flex items-center gap-1 text-[9px]">
 								<div class="w-2 h-2 rounded-full" style="background: {getColor(i)};"></div>
 								<span class="text-white/60">{cp?.label.split(' ')[0]}</span>
@@ -164,7 +161,7 @@
 			<div class="border-t border-white/10 pt-4">
 				<h4 class="text-xs font-bold text-white/60 uppercase tracking-wider mb-3">📊 航线指标对比</h4>
 
-				{#if $comparison.size > 0}
+				{#if comparison.size > 0}
 					<div class="space-y-3">
 						{#each metricList as metric}
 							<div>
@@ -172,8 +169,8 @@
 									<span class="text-[10px] text-white/50">{metric.label}</span>
 								</div>
 								<div class="space-y-1">
-									{#each Array.from($comparison.entries()) as [idx, data], i}
-										{@const cp = $comparisonPoints.find(p => p.timeIndex === idx)}
+									{#each Array.from(comparison.entries()) as [idx, data], i}
+										{@const cp = comparisonPoints.find((p: ComparisonTimePoint) => p.timeIndex === idx)}
 										{@const analysis = data.routeAnalyses.values().next().value}
 										{#if analysis}
 											{@const rawValue = analysis[metric.key as keyof typeof analysis]}
@@ -204,7 +201,7 @@
 				{/if}
 			</div>
 
-			{#if $series.timeLabels.length > 2}
+			{#if series.timeLabels.length > 2}
 				<div class="border-t border-white/10 pt-4">
 					<h4 class="text-xs font-bold text-white/60 uppercase tracking-wider mb-3">📈 全时段演化曲线</h4>
 					<div class="bg-black/20 rounded-lg p-3">
@@ -213,8 +210,8 @@
 							<line x1="0" y1="60" x2="300" y2="60" stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="2,2"/>
 							<line x1="0" y1="90" x2="300" y2="90" stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="2,2"/>
 
-							{#each Array.from($comparison.entries()) as [idx], i}
-								{@const xPos = (idx / Math.max(1, $series.timeLabels.length - 1)) * 300}
+							{#each Array.from(comparison.entries()) as [idx], i}
+								{@const xPos = (idx / Math.max(1, series.timeLabels.length - 1)) * 300}
 								<line x1={xPos} y1="0" x2={xPos} y2="120" stroke={getColor(i)} stroke-width="1" stroke-dasharray="3,2" opacity="0.4"/>
 							{/each}
 
@@ -223,7 +220,7 @@
 								stroke="#22c55e"
 								stroke-width="1.5"
 								opacity="0.8"
-								points={$series.avgIntensity.map((v, i) => `${(i / Math.max(1, $series.avgIntensity.length - 1)) * 300},${115 - (v / 100) * 100}`).join(' ')}
+								points={series.avgIntensity.map((v, i) => `${(i / Math.max(1, series.avgIntensity.length - 1)) * 300},${115 - (v / 100) * 100}`).join(' ')}
 							/>
 
 							<polyline
@@ -232,7 +229,7 @@
 								stroke-width="1.5"
 								opacity="0.6"
 								stroke-dasharray="4,2"
-								points={$series.reachableRatio.map((v, i) => `${(i / Math.max(1, $series.reachableRatio.length - 1)) * 300},${115 - v * 100}`).join(' ')}
+								points={series.reachableRatio.map((v, i) => `${(i / Math.max(1, series.reachableRatio.length - 1)) * 300},${115 - v * 100}`).join(' ')}
 							/>
 
 							<polyline
@@ -240,14 +237,14 @@
 								stroke="#ef4444"
 								stroke-width="1"
 								opacity="0.5"
-								points={$series.blockedRatio.map((v, i) => `${(i / Math.max(1, $series.blockedRatio.length - 1)) * 300},${115 - v * 100}`).join(' ')}
+								points={series.blockedRatio.map((v, i) => `${(i / Math.max(1, series.blockedRatio.length - 1)) * 300},${115 - v * 100}`).join(' ')}
 							/>
 
-							{#each Array.from($comparison.entries()) as [idx, data], i}
+							{#each Array.from(comparison.entries()) as [idx, data], i}
 								{@const analysis = data.routeAnalyses.values().next().value}
 								{#if analysis}
 									<circle
-										cx={(idx / Math.max(1, $series.timeLabels.length - 1)) * 300}
+										cx={(idx / Math.max(1, series.timeLabels.length - 1)) * 300}
 										cy={115 - (analysis.avgIntensity / 100) * 100}
 										r="4"
 										fill={getColor(i)}

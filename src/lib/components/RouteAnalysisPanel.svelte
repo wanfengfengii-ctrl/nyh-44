@@ -17,7 +17,7 @@
 	let effectiveAnalysis = $derived(
 		temporalMode ? $temporalActiveRouteAnalysis : $activeRouteAnalysis
 	);
-	let $peaks = $allRiskPeaks;
+	let peaks = $derived($allRiskPeaks);
 
 	$effect(() => {
 		if (!chart) return;
@@ -257,11 +257,11 @@
 			<canvas bind:this={canvas}></canvas>
 		</div>
 
-		{#if temporalMode && $peaks.length > 0}
+		{#if temporalMode && peaks.length > 0}
 			<div class="mb-3 p-3 rounded-lg bg-cyan-500/8 border border-cyan-500/15">
 				<div class="text-[10px] text-cyan-400/70 uppercase tracking-wider mb-2 font-body">⚠️ 时变风险峰值</div>
 				<div class="space-y-1 max-h-24 overflow-y-auto">
-					{#each $peaks.slice(0, 3) as peak}
+					{#each peaks.slice(0, 3) as peak}
 						<div class="flex items-center gap-2 text-[11px]">
 							<div class="w-2 h-2 rounded-full shrink-0" style="background: {getRiskColor(peak.riskLevel)};"></div>
 							<span class="text-white/60 truncate">{peak.description.split('：')[0]}</span>

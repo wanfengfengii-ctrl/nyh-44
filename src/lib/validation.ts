@@ -73,6 +73,8 @@ export function validateTemporalParams(temporal: TemporalParams): ValidationResu
 
 	return { valid: errors.length === 0, errors };
 }
+
+export function checkPointOverlap(
 	points: Point[],
 	newPoint: Omit<Point, 'id'>,
 	threshold: number = 20

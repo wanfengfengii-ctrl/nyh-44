@@ -177,7 +177,7 @@ function createTidalStore() {
 		return snapshots;
 	}
 
-	function updateTidal(updates: Partial<TidalParams>): void {
+	function updateTemporal(updates: Partial<TemporalParams>): void {
 		update((params) => ({ ...params, ...updates }));
 	}
 
@@ -350,7 +350,7 @@ function createTidalStore() {
 	return {
 		subscribe,
 		set,
-		update: updateTidal,
+		update: updateTemporal,
 		updateTidal: updateTidalDetails,
 		updateSeaSurface,
 		updateDayTime,
