@@ -1,6 +1,7 @@
 import { writable, derived } from 'svelte/store';
 import type { Point, SoundSourceParams } from '../types';
 import { validatePointIdUnique, checkPointOverlap } from '../validation';
+import { routes } from './routesStore';
 
 const DEFAULT_SOURCE_PARAMS: SoundSourceParams = {
 	frequency: 500,
@@ -68,6 +69,8 @@ function createPointsStore() {
 			return [...points.slice(0, index), { ...points[index], x, y }, ...points.slice(index + 1)];
 		});
 
+		routes.syncPointToRoutes(id, x, y);
+
 		return { success: true, errors: [] };
 	}
 
@@ -85,9 +88,24 @@ function createPointsStore() {
 	}
 
 	function updateSourceParams(id: string, params: Partial<SoundSourceParams>): boolean {
-		return updatePoint(id, {
-			sourceParams: { ...DEFAULT_SOURCE_PARAMS, ...params }
+		let updated = false;
+		update((points) => {
+			const index = points.findIndex((p) => p.id === id);
+			if (index !== -1 && points[index].sourceParams) {
+				updated = true;
+				const existing = points[index].sourceParams!;
+				return [
+					...points.slice(0, index),
+					{
+						...points[index],
+						sourceParams: { ...existing, ...params }
+					},
+					...points.slice(index + 1)
+				];
+			}
+			return points;
 		});
+		return updated;
 	}
 
 	function toggleSourceEnabled(id: string): boolean {
@@ -103,9 +121,11 @@ function createPointsStore() {
 
 	function removePoint(id: string): void {
 		update((points) => points.filter((p) => p.id !== id));
+		routes.unlinkPointFromRoutes(id);
 	}
 
 	function clearPoints(): void {
+		routes.clearRoutes();
 		set([]);
 	}
 

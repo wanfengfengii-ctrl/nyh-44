@@ -3,7 +3,7 @@
 	import { Chart, registerables } from 'chart.js';
 	import { propagationSector, getIntensityColor } from '$lib/stores/propagationStore';
 	import { weather } from '$lib/stores/weatherStore';
-	import { lighthouse } from '$lib/stores/pointsStore';
+	import { soundSources } from '$lib/stores/pointsStore';
 
 	Chart.register(...registerables);
 
@@ -125,7 +125,7 @@
 	});
 </script>
 
-{#if $lighthouse}
+{#if $soundSources.length > 0}
 	<div class="relative">
 		<canvas bind:this={canvas}></canvas>
 	</div>
@@ -135,6 +135,6 @@
 	</div>
 {:else}
 	<div class="py-12 text-center text-sm text-white/30 font-body">
-		请先在画布上放置灯塔
+		请先在画布上放置灯塔或雾号
 	</div>
 {/if}

@@ -55,6 +55,8 @@ export interface Route {
 	name: string;
 	waypoints: RouteWaypoint[];
 	speed: number;
+	startPointId?: string;
+	endPointId?: string;
 }
 
 export interface RouteSegmentIntensity {

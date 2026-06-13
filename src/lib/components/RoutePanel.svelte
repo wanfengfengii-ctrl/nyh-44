@@ -4,9 +4,15 @@
 	import { activeRouteAnalysis, totalRiskCount } from '$lib/stores/propagationStore';
 	import { alerts } from '$lib/stores/alertsStore';
 	import { getRiskColor } from '$lib/acoustics';
+	import { points } from '$lib/stores/pointsStore';
+	import type { Point } from '$lib/types';
 
 	let newRouteName = $state('');
 	let newRouteSpeed = $state(10);
+
+	$effect(() => {
+		void points;
+	});
 
 	function handleAddRoute() {
 		const route = routes.addRoute(newRouteName.trim() || `航线${$routes.length + 1}`, newRouteSpeed);
@@ -46,6 +52,30 @@
 
 	function handleRemoveWaypoint(routeId: string, wpId: string) {
 		routes.removeWaypoint(routeId, wpId);
+	}
+
+	function handleSetStartPoint(routeId: string, pointId: string) {
+		const point = pointId ? $points.find((p) => p.id === pointId) ?? null : null;
+		routes.setRouteStartPoint(routeId, point);
+		if (point) {
+			alerts.showSuccess(`已设置起点: ${point.label}`);
+		}
+	}
+
+	function handleSetEndPoint(routeId: string, pointId: string) {
+		const point = pointId ? $points.find((p) => p.id === pointId) ?? null : null;
+		routes.setRouteEndPoint(routeId, point);
+		if (point) {
+			alerts.showSuccess(`已设置终点: ${point.label}`);
+		}
+	}
+
+	function getPorts(): Point[] {
+		return $points.filter((p) => p.type === 'port');
+	}
+
+	function getShips(): Point[] {
+		return $points.filter((p) => p.type === 'ship');
 	}
 
 	function formatDuration(seconds: number): string {
@@ -153,6 +183,35 @@
 							{#if analysis}
 								· 总距离 {analysis.totalDistance.toFixed(0)}m
 							{/if}
+						</div>
+
+						<div class="space-y-1.5 mb-2">
+							<div class="flex items-center gap-2">
+								<span class="text-[10px] text-white/40 font-body w-10">起点:</span>
+								<select
+									value={route.startPointId ?? ''}
+									onchange={(e) => handleSetStartPoint(route.id, (e.target as HTMLSelectElement).value)}
+									class="flex-1 px-2 py-1 rounded bg-white/5 border border-white/10 text-[11px] text-white/80 focus:outline-none focus:border-accent/50 font-body"
+								>
+									<option value="">-- 选择港口 --</option>
+									{#each getPorts() as port (port.id)}
+										<option value={port.id}>⚓ {port.label}</option>
+									{/each}
+								</select>
+							</div>
+							<div class="flex items-center gap-2">
+								<span class="text-[10px] text-white/40 font-body w-10">终点:</span>
+								<select
+									value={route.endPointId ?? ''}
+									onchange={(e) => handleSetEndPoint(route.id, (e.target as HTMLSelectElement).value)}
+									class="flex-1 px-2 py-1 rounded bg-white/5 border border-white/10 text-[11px] text-white/80 focus:outline-none focus:border-accent/50 font-body"
+								>
+									<option value="">-- 选择船只/目标 --</option>
+									{#each getShips() as ship (ship.id)}
+										<option value={ship.id}>⛵ {ship.label}</option>
+									{/each}
+								</select>
+							</div>
 						</div>
 
 						{#if analysis && analysis.segments.length > 0}
