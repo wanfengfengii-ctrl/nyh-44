@@ -1,0 +1,17 @@
+@import 'tailwindcss';
+
+@theme {
+	--color-primary: #0A2463;
+	--color-primary-light: #1a3a7a;
+	--color-primary-dark: #061845;
+	--color-accent: #FFD700;
+	--color-accent-light: #ffe44d;
+	--color-sea-fog: #8D99AE;
+	--color-ocean-deep: #0A2463;
+	--color-ocean-mid: #1e3a6e;
+	--color-ocean-surface: #3b82f6;
+	--color-sand: #f5e6c8;
+	--color-lighthouse-glow: #f59e0b;
+	--font-display: 'Playfair Display', Georgia, serif;
+	--font-body: 'IBM Plex Sans', system-ui, sans-serif;
+}
