@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Chart, registerables } from 'chart.js';
-	import { propagationSector, getIntensityColor } from '$lib/stores/propagationStore';
+	import { propagationSector, temporalPropagationSector, getIntensityColor } from '$lib/stores/propagationStore';
 	import { weather } from '$lib/stores/weatherStore';
 	import { soundSources } from '$lib/stores/pointsStore';
 
@@ -9,6 +9,11 @@
 
 	let canvas = $state<HTMLCanvasElement | undefined>(undefined);
 	let chart = $state<Chart | null>(null);
+	let temporalMode = $state(false);
+
+	let effectiveSector = $derived(
+		temporalMode ? $temporalPropagationSector : $propagationSector
+	);
 
 	$effect(() => {
 		if (!chart) return;
@@ -18,7 +23,7 @@
 	function updateChart() {
 		if (!chart) return;
 
-		const sector = $propagationSector;
+		const sector = effectiveSector;
 		const labels = sector.map((s) => `${s.angle.toFixed(0)}°`);
 		const data = sector.map((s) => s.intensity);
 
@@ -75,7 +80,7 @@
 						callbacks: {
 							label: function (context: any) {
 								const index = context.dataIndex;
-								const sector = $propagationSector[index];
+								const sector = effectiveSector[index];
 								if (sector) {
 									return [
 										`角度: ${sector.angle.toFixed(0)}°`,
@@ -126,6 +131,22 @@
 </script>
 
 {#if $soundSources.length > 0}
+	<div class="flex items-center justify-between mb-2">
+		<span class="text-xs text-white/40 font-body">
+			传播方向强度分布 {temporalMode ? '(时变)' : ''}
+		</span>
+		<button
+			onclick={() => temporalMode = !temporalMode}
+			class="flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] transition-all {
+				temporalMode
+					? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-300'
+					: 'border-white/10 bg-white/5 text-white/40 hover:text-white/60'
+			}"
+			title={temporalMode ? '切换为静态模式' : '切换为时变模式'}
+		>
+			🌀 {temporalMode ? '时变' : '静态'}
+		</button>
+	</div>
 	<div class="relative">
 		<canvas bind:this={canvas}></canvas>
 	</div>

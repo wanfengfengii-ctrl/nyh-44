@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Chart, registerables } from 'chart.js';
-	import { activeRouteAnalysis, totalRiskCount } from '$lib/stores/propagationStore';
+	import { activeRouteAnalysis, temporalActiveRouteAnalysis, totalRiskCount, temporalTotalRiskCount, allRiskPeaks } from '$lib/stores/propagationStore';
 	import { activeRoute, activeRouteId } from '$lib/stores/routesStore';
 	import { getRiskColor, getIntensityColor } from '$lib/acoustics';
 	import type { RouteRiskAlert } from '$lib/types';
@@ -12,6 +12,12 @@
 	let chart = $state<Chart | null>(null);
 
 	let selectedAlert = $state<RouteRiskAlert | null>(null);
+	let temporalMode = $state(false);
+
+	let effectiveAnalysis = $derived(
+		temporalMode ? $temporalActiveRouteAnalysis : $activeRouteAnalysis
+	);
+	let $peaks = $allRiskPeaks;
 
 	$effect(() => {
 		if (!chart) return;
@@ -21,7 +27,7 @@
 	function updateChart() {
 		if (!chart) return;
 
-		const analysis = $activeRouteAnalysis;
+		const analysis = effectiveAnalysis;
 		if (!analysis || analysis.segments.length === 0) {
 			chart.data.labels = [];
 			chart.data.datasets[0].data = [];
@@ -127,7 +133,7 @@
 						callbacks: {
 							label: function (context: any) {
 								const index = context.dataIndex;
-								const seg = $activeRouteAnalysis?.segments[index];
+								const seg = effectiveAnalysis?.segments[index];
 								if (seg) {
 									return [
 										`声强: ${seg.intensity.toFixed(1)}%`,
@@ -193,15 +199,29 @@
 </script>
 
 <div class="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-4">
-	<h3 class="text-lg font-display font-bold mb-4 text-white flex items-center gap-2">
-		<span class="text-accent">📊</span> 航线声强分析
-	</h3>
+	<div class="flex items-center justify-between mb-4">
+		<h3 class="text-lg font-display font-bold text-white flex items-center gap-2">
+			<span class="text-accent">📊</span> 航线声强分析
+		</h3>
+		<button
+			onclick={() => temporalMode = !temporalMode}
+			class="flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] transition-all {
+				temporalMode
+					? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-300'
+					: 'border-white/10 bg-white/5 text-white/40 hover:text-white/60'
+			}"
+			title={temporalMode ? '切换为静态模式' : '切换为时变模式'}
+		>
+			<span>🌀</span>
+			<span>{temporalMode ? '时变' : '静态'}</span>
+		</button>
+	</div>
 
 	{#if !$activeRoute}
 		<div class="py-8 text-center text-sm text-white/30 font-body">
 			请在航线管理中选择一条航线
 		</div>
-	{:else if !$activeRouteAnalysis || $activeRouteAnalysis.segments.length < 2}
+	{:else if !effectiveAnalysis || effectiveAnalysis.segments.length < 2}
 		<div class="py-8 text-center text-sm text-white/30 font-body">
 			航线航点不足，请添加至少 2 个航点
 		</div>
@@ -210,25 +230,25 @@
 			<div class="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
 				<div class="text-[10px] text-emerald-400 font-body mb-0.5">总距离</div>
 				<div class="text-sm font-bold text-emerald-400 font-display">
-					{$activeRouteAnalysis.totalDistance.toFixed(0)}m
+					{effectiveAnalysis.totalDistance.toFixed(0)}m
 				</div>
 			</div>
 			<div class="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-center">
 				<div class="text-[10px] text-cyan-400 font-body mb-0.5">平均声强</div>
 				<div class="text-sm font-bold text-cyan-400 font-display">
-					{$activeRouteAnalysis.avgIntensity.toFixed(0)}%
+					{effectiveAnalysis.avgIntensity.toFixed(0)}%
 				</div>
 			</div>
 			<div class="p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-center">
 				<div class="text-[10px] text-yellow-400 font-body mb-0.5">最低声强</div>
 				<div class="text-sm font-bold text-yellow-400 font-display">
-					{$activeRouteAnalysis.minIntensity.toFixed(0)}%
+					{effectiveAnalysis.minIntensity.toFixed(0)}%
 				</div>
 			</div>
 			<div class="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 text-center">
 				<div class="text-[10px] text-purple-400 font-body mb-0.5">航行时间</div>
 				<div class="text-sm font-bold text-purple-400 font-display">
-					{formatDuration($activeRouteAnalysis.totalDistance / ($activeRoute?.speed || 10))}
+					{formatDuration(effectiveAnalysis.totalDistance / ($activeRoute?.speed || 10))}
 				</div>
 			</div>
 		</div>
@@ -237,20 +257,35 @@
 			<canvas bind:this={canvas}></canvas>
 		</div>
 
+		{#if temporalMode && $peaks.length > 0}
+			<div class="mb-3 p-3 rounded-lg bg-cyan-500/8 border border-cyan-500/15">
+				<div class="text-[10px] text-cyan-400/70 uppercase tracking-wider mb-2 font-body">⚠️ 时变风险峰值</div>
+				<div class="space-y-1 max-h-24 overflow-y-auto">
+					{#each $peaks.slice(0, 3) as peak}
+						<div class="flex items-center gap-2 text-[11px]">
+							<div class="w-2 h-2 rounded-full shrink-0" style="background: {getRiskColor(peak.riskLevel)};"></div>
+							<span class="text-white/60 truncate">{peak.description.split('：')[0]}</span>
+							<span class="ml-auto font-mono text-white/40 shrink-0">{(peak.severity * 100).toFixed(0)}%</span>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
 		<div class="mb-3 flex items-center justify-between">
 			<div class="text-xs font-body font-medium text-white/50 uppercase tracking-wider">
-				风险预警 ({$activeRouteAnalysis.riskAlerts.length})
+				风险预警 ({effectiveAnalysis.riskAlerts.length})
 			</div>
 		</div>
 
 		<div class="max-h-48 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
-			{#if $activeRouteAnalysis.riskAlerts.length === 0}
+			{#if effectiveAnalysis.riskAlerts.length === 0}
 				<div class="text-xs text-emerald-400/70 py-4 text-center font-body flex items-center justify-center gap-2">
 					<span>✓</span>
 					<span>航线安全，无风险预警</span>
 				</div>
 			{/if}
-			{#each $activeRouteAnalysis.riskAlerts as alert (alert.id)}
+			{#each effectiveAnalysis.riskAlerts as alert (alert.id)}
 				<div
 					class="p-3 rounded-lg border cursor-pointer transition-all duration-200 {
 						selectedAlert?.id === alert.id

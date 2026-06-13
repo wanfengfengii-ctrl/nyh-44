@@ -4,10 +4,11 @@
 	import { points, soundSources, allSources } from '$lib/stores/pointsStore';
 	import { cliffs } from '$lib/stores/cliffsStore';
 	import { canvas } from '$lib/stores/canvasStore';
-	import { propagationResults, perSourceSectors, getIntensityColor, activeRouteAnalysis, routeAnalysisResults } from '$lib/stores/propagationStore';
+	import { propagationResults, perSourceSectors, getIntensityColor, activeRouteAnalysis, routeAnalysisResults, temporalPropagationResults, temporalPerSourceSectors, temporalRouteAnalysisResults, temporalActiveRouteAnalysis } from '$lib/stores/propagationStore';
 	import { routes, activeRoute, activeRouteId } from '$lib/stores/routesStore';
 	import { weather } from '$lib/stores/weatherStore';
 	import { alerts } from '$lib/stores/alertsStore';
+	import { temporal, currentSnapshot, TIDAL_PHASES, TIME_OF_DAY } from '$lib/stores/tidalStore';
 	import type { PointType } from '$lib/types';
 	import { getRiskColor } from '$lib/acoustics';
 
@@ -20,6 +21,22 @@
 	let cliffStartX = $state(0);
 	let cliffStartY = $state(0);
 	let tempCliffId = $state<string | null>(null);
+
+	let temporalModeEnabled = $state(false);
+
+	let effectivePropagationResults = $derived(
+		temporalModeEnabled ? $temporalPropagationResults : $propagationResults
+	);
+	let effectivePerSourceSectors = $derived(
+		temporalModeEnabled ? $temporalPerSourceSectors : $perSourceSectors
+	);
+	let effectiveRouteAnalysisResults = $derived(
+		temporalModeEnabled ? $temporalRouteAnalysisResults : $routeAnalysisResults
+	);
+	let effectiveActiveRouteAnalysis = $derived(
+		temporalModeEnabled ? $temporalActiveRouteAnalysis : $activeRouteAnalysis
+	);
+	let currentSnap = $currentSnapshot;
 
 	let modeLabel = $derived.by(() => {
 		const mode = $canvas.mode;
@@ -52,7 +69,7 @@
 	}
 
 	function getResultForPoint(pointId: string) {
-		return $propagationResults.find((r) => r.pointId === pointId);
+		return effectivePropagationResults.find((r) => r.pointId === pointId);
 	}
 
 	function renderAll() {
@@ -70,10 +87,11 @@
 		cy.add(elements);
 
 		renderWindIndicator();
+		renderTemporalOverlay();
 	}
 
 	function renderSectorOverlays(elements: ElementDefinition[]) {
-		const sectors = $perSourceSectors;
+		const sectors = effectivePerSourceSectors;
 		const sources = $allSources;
 
 		let svgContent = '';
@@ -126,7 +144,7 @@
 
 	function renderRoutes(elements: ElementDefinition[]) {
 		const allRoutes = $routes;
-		const analysisMap = $routeAnalysisResults;
+		const analysisMap = effectiveRouteAnalysisResults;
 
 		for (const route of allRoutes) {
 			if (route.waypoints.length < 2) {
@@ -391,6 +409,45 @@
 		});
 	}
 
+	function renderTemporalOverlay() {
+		if (!cy || !temporalModeEnabled) return;
+
+		cy.getElementById('temporal-badge').remove();
+		cy.getElementById('temporal-badge-text').remove();
+
+		const snap = currentSnap;
+		if (!snap) return;
+
+		const phaseInfo = TIDAL_PHASES.find(p => p.value === snap.tidal.tidalPhase);
+		const todInfo = TIME_OF_DAY.find(t => t.value === snap.dayTime.timeOfDay);
+
+		let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="56">`
+			+ `<rect x="0" y="0" width="160" height="56" rx="8" fill="rgba(0,20,60,0.85)" stroke="rgba(34,211,238,0.4)" stroke-width="1"/>`
+			+ `<text x="80" y="16" font-size="8" fill="rgba(34,211,238,0.7)" text-anchor="middle" font-family="monospace">时变模拟</text>`
+			+ `<text x="80" y="30" font-size="11" fill="white" text-anchor="middle" font-weight="bold" font-family="monospace">${snap.displayTime}</text>`
+			+ `<text x="80" y="44" font-size="8" fill="rgba(255,255,255,0.5)" text-anchor="middle" font-family="sans-serif">${phaseInfo?.icon ?? ''} ${phaseInfo?.label ?? ''} · ${todInfo?.label ?? ''}</text>`
+			+ `</svg>`;
+
+		cy.add([
+			{
+				group: 'nodes',
+				data: { id: 'temporal-badge-text' },
+				position: { x: 85, y: 38 },
+				style: { width: 160, height: 56, opacity: 1, shape: 'rectangle' }
+			}
+		]);
+
+		const badgeNode = cy.getElementById('temporal-badge-text');
+		if (badgeNode.length > 0) {
+			badgeNode.style({
+				'background-image': `data:image/svg+xml;utf8,${encodeURIComponent(svgContent)}`,
+				'background-width': '100%',
+				'background-height': '100%',
+				'z-index': 200
+			});
+		}
+	}
+
 	function renderWindIndicator() {
 		if (!cy) return;
 		const sources = $soundSources;
@@ -637,6 +694,18 @@
 
 	<div class="absolute top-3 right-3 z-10 flex gap-1">
 		<button
+			onclick={() => temporalModeEnabled = !temporalModeEnabled}
+			class="px-2.5 h-8 backdrop-blur-sm rounded-lg shadow-lg shadow-black/30 border transition-colors flex items-center justify-center gap-1.5 text-xs font-medium {
+				temporalModeEnabled
+					? 'bg-cyan-500/20 border-cyan-400/40 text-cyan-300 hover:bg-cyan-500/30'
+					: 'bg-ocean-deep/80 border-white/10 text-white/50 hover:bg-ocean-mid/80 hover:text-white/70'
+			}"
+			title={temporalModeEnabled ? '关闭时变模拟' : '开启时变模拟'}
+		>
+			<span>🌀</span>
+			<span>{temporalModeEnabled ? '时变' : '静态'}</span>
+		</button>
+		<button
 			onclick={() => cy?.zoom(Math.min((cy?.zoom() ?? 1) * 1.3, 3))}
 			class="w-8 h-8 bg-ocean-deep/80 backdrop-blur-sm rounded-lg shadow-lg shadow-black/30 border border-white/10 hover:bg-ocean-mid/80 hover:border-accent/30 transition-colors flex items-center justify-center text-sm font-bold text-white/70 hover:text-accent"
 		>
@@ -692,6 +761,12 @@
 			<span class="w-3 h-3 rotate-45 bg-cyan-400"></span>
 			<span class="text-[10px] text-white/50 font-body">航线</span>
 		</div>
+		{#if temporalModeEnabled}
+			<div class="flex items-center gap-1.5 px-2.5 py-1 bg-cyan-500/15 backdrop-blur-sm rounded-lg shadow-lg shadow-black/30 border border-cyan-400/30">
+				<span class="text-cyan-400 text-xs">🌀</span>
+				<span class="text-[10px] text-cyan-300/80 font-body">时变模式</span>
+			</div>
+		{/if}
 	</div>
 
 	<div

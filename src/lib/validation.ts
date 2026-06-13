@@ -1,4 +1,4 @@
-import type { Point, Cliff, WeatherParams, SavedScenario, Route } from './types';
+import type { Point, Cliff, WeatherParams, SavedScenario, Route, TemporalParams } from './types';
 
 export interface ValidationResult {
 	valid: boolean;
@@ -30,7 +30,49 @@ export function validateWeatherParams(weather: WeatherParams): ValidationResult 
 	return { valid: errors.length === 0, errors };
 }
 
-export function checkPointOverlap(
+export function validateTemporalParams(temporal: TemporalParams): ValidationResult {
+	const errors: string[] = [];
+	const { tidal, seaSurface, dayTime } = temporal;
+
+	if (tidal.tideLevel < 0 || tidal.tideLevel > tidal.tidalRange) {
+		errors.push('潮位高度必须在 0 到潮差范围之间。');
+	}
+	if (tidal.tidalRange < 0.1 || tidal.tidalRange > 15) {
+		errors.push('潮差范围必须在 0.1-15m 之间。');
+	}
+	if (tidal.tidalCurrentSpeed < 0 || tidal.tidalCurrentSpeed > 10) {
+		errors.push('潮流速度必须在 0-10 m/s 之间。');
+	}
+	if (tidal.tidalCurrentDirection < 0 || tidal.tidalCurrentDirection > 360) {
+		errors.push('潮流方向必须在 0-360° 之间。');
+	}
+	if (seaSurface.waveHeight < 0 || seaSurface.waveHeight > 15) {
+		errors.push('浪高必须在 0-15m 之间。');
+	}
+	if (seaSurface.waveDirection < 0 || seaSurface.waveDirection > 360) {
+		errors.push('浪向必须在 0-360° 之间。');
+	}
+	if (seaSurface.surfaceTemperature < -5 || seaSurface.surfaceTemperature > 40) {
+		errors.push('海水温度必须在 -5 到 40°C 之间。');
+	}
+	if (dayTime.hourOfDay < 0 || dayTime.hourOfDay >= 24) {
+		errors.push('小时必须在 0-24 之间。');
+	}
+	if (dayTime.visibility < 0.1 || dayTime.visibility > 50) {
+		errors.push('能见度必须在 0.1-50 km 之间。');
+	}
+	if (dayTime.ambientNoise < 20 || dayTime.ambientNoise > 120) {
+		errors.push('环境噪声必须在 20-120 dB 之间。');
+	}
+	if (temporal.timeStep < 0.05 || temporal.timeStep > 6) {
+		errors.push('时间步长必须在 0.05-6 小时之间。');
+	}
+	if (temporal.totalSimulatedHours < 1 || temporal.totalSimulatedHours > 168) {
+		errors.push('模拟总时长必须在 1-168 小时之间。');
+	}
+
+	return { valid: errors.length === 0, errors };
+}
 	points: Point[],
 	newPoint: Omit<Point, 'id'>,
 	threshold: number = 20
