@@ -307,10 +307,6 @@
 		const type = typeMap[mode];
 		if (!type) return;
 
-		if (type === 'lighthouse' && $lighthouse) {
-			points.removePoint($lighthouse.id);
-		}
-
 		const nextNum = points.getNextNumber(type);
 		const label = type === 'lighthouse' ? `灯塔${nextNum}` : type === 'coast' ? `海岸${nextNum}` : type === 'port' ? `港口${nextNum}` : `船只${nextNum}`;
 		const id = `${type}-${nextNum}`;
@@ -370,7 +366,14 @@
 			const data = evt.target.data();
 			const pos = evt.target.position();
 			if (data.pointId) {
-				points.updatePoint(data.pointId, { x: pos.x, y: pos.y });
+				const result = points.movePoint(data.pointId, pos.x, pos.y);
+				if (!result.success) {
+					const current = $points.find((p) => p.id === data.pointId);
+					if (current) {
+						evt.target.position({ x: current.x, y: current.y });
+					}
+					alerts.showErrors(result.errors);
+				}
 			}
 		});
 

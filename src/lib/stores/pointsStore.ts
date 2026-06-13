@@ -11,12 +11,16 @@ function createPointsStore() {
 		let currentPoints: Point[] = [];
 		subscribe((p) => (currentPoints = p))();
 
-		const idResult = validatePointIdUnique(currentPoints, id);
+		const pointsToCheck = point.type === 'lighthouse'
+			? currentPoints.filter((p) => p.type !== 'lighthouse')
+			: currentPoints;
+
+		const idResult = validatePointIdUnique(pointsToCheck, id);
 		if (!idResult.valid) {
 			errors = [...errors, ...idResult.errors];
 		}
 
-		const overlapResult = checkPointOverlap(currentPoints, point);
+		const overlapResult = checkPointOverlap(pointsToCheck, point);
 		if (!overlapResult.valid) {
 			errors = [...errors, ...overlapResult.errors];
 		}
@@ -25,7 +29,44 @@ function createPointsStore() {
 			return { success: false, errors };
 		}
 
-		update((points) => [...points, { ...point, id }]);
+		update((points) => {
+			let filtered = points;
+			if (point.type === 'lighthouse') {
+				filtered = points.filter((p) => p.type !== 'lighthouse');
+			}
+			return [...filtered, { ...point, id }];
+		});
+
+		return { success: true, errors: [] };
+	}
+
+	function movePoint(id: string, x: number, y: number): { success: boolean; errors: string[] } {
+		let errors: string[] = [];
+
+		let currentPoints: Point[] = [];
+		subscribe((p) => (currentPoints = p))();
+
+		const point = currentPoints.find((p) => p.id === id);
+		if (!point) {
+			return { success: false, errors: ['点位不存在。'] };
+		}
+
+		const otherPoints = currentPoints.filter((p) => p.id !== id);
+		const overlapResult = checkPointOverlap(otherPoints, { ...point, x, y });
+		if (!overlapResult.valid) {
+			errors = [...errors, ...overlapResult.errors];
+		}
+
+		if (errors.length > 0) {
+			return { success: false, errors };
+		}
+
+		update((points) => {
+			const index = points.findIndex((p) => p.id === id);
+			if (index === -1) return points;
+			return [...points.slice(0, index), { ...points[index], x, y }, ...points.slice(index + 1)];
+		});
+
 		return { success: true, errors: [] };
 	}
 
@@ -74,6 +115,7 @@ function createPointsStore() {
 		subscribe,
 		set,
 		addPoint,
+		movePoint,
 		updatePoint,
 		removePoint,
 		clearPoints,

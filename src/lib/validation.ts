@@ -177,20 +177,41 @@ export function exportScenario(scenario: SavedScenario): string {
 	return JSON.stringify(scenario, null, 2);
 }
 
-export function importScenario(json: string): SavedScenario | null {
+export function importScenario(json: string): { scenario: SavedScenario | null; errors: string[] } {
 	try {
 		const parsed = JSON.parse(json);
-		if (
-			parsed.id &&
-			parsed.name &&
-			Array.isArray(parsed.points) &&
-			Array.isArray(parsed.cliffs) &&
-			parsed.weather
-		) {
-			return parsed as SavedScenario;
+		const errors: string[] = [];
+
+		if (!parsed.id) errors.push('方案缺少 id 字段。');
+		if (!parsed.name) errors.push('方案缺少 name 字段。');
+		if (!Array.isArray(parsed.points)) errors.push('方案缺少 points 数组。');
+		if (!Array.isArray(parsed.cliffs)) errors.push('方案缺少 cliffs 数组。');
+		if (!parsed.weather) errors.push('方案缺少 weather 字段。');
+
+		if (errors.length > 0) {
+			return { scenario: null, errors };
 		}
-		return null;
-	} catch {
-		return null;
+
+		const pointIds = parsed.points.map((p: any) => p.id);
+		const uniqueIds = new Set(pointIds);
+		if (pointIds.length !== uniqueIds.size) {
+			const duplicates = pointIds.filter((id: string, i: number) => pointIds.indexOf(id) !== i);
+			errors.push(`方案中存在重复的点位编号：${[...new Set(duplicates)].join('、')}`);
+		}
+
+		const cliffIds = parsed.cliffs.map((c: any) => c.id);
+		const uniqueCliffIds = new Set(cliffIds);
+		if (cliffIds.length !== uniqueCliffIds.size) {
+			const duplicates = cliffIds.filter((id: string, i: number) => cliffIds.indexOf(id) !== i);
+			errors.push(`方案中存在重复的岩壁编号：${[...new Set(duplicates)].join('、')}`);
+		}
+
+		if (errors.length > 0) {
+			return { scenario: null, errors };
+		}
+
+		return { scenario: parsed as SavedScenario, errors: [] };
+	} catch (e) {
+		return { scenario: null, errors: ['解析失败：无效的 JSON 格式。'] };
 	}
 }

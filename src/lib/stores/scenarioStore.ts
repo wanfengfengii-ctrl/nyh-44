@@ -50,7 +50,7 @@ function createScenarioStore() {
 	}
 
 	function imp(json: string): SavedScenario | null {
-		const scenario = importScenario(json);
+		const { scenario, errors } = importScenario(json);
 		if (scenario) {
 			const saved = loadAllScenarios();
 			saved.push({ ...scenario, id: `scenario-${Date.now()}` });
@@ -59,7 +59,7 @@ function createScenarioStore() {
 			refresh();
 			return scenario;
 		} else {
-			alerts.showErrors(['导入失败：无效的方案数据。']);
+			alerts.showErrors(errors.length > 0 ? errors : ['导入失败：无效的方案数据。']);
 			return null;
 		}
 	}
