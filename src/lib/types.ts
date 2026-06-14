@@ -181,6 +181,70 @@ export interface ComparisonTimePoint {
 	simulatedHour: number;
 }
 
+export type VesselStatus = 'idle' | 'scheduled' | 'transit' | 'completed';
+
+export interface Vessel {
+	id: string;
+	name: string;
+	routeId: string | null;
+	speed: number;
+	status: VesselStatus;
+	priority: number;
+	color: string;
+}
+
+export interface SafetyWindow {
+	startHour: number;
+	endHour: number;
+	riskLevel: RiskLevel;
+	avgIntensity: number;
+	reachableRatio: number;
+	tidalPhase: TidalPhase;
+	seaState: SeaState;
+	timeOfDay: TimeOfDay;
+	score: number;
+}
+
+export interface VesselSchedule {
+	vesselId: string;
+	routeId: string;
+	departureHour: number;
+	arrivalHour: number;
+	safetyWindows: SafetyWindow[];
+	bestDepartureHour: number;
+	bestWindow: SafetyWindow | null;
+	overallRisk: RiskLevel;
+	overallScore: number;
+}
+
+export interface ConflictPeriod {
+	startHour: number;
+	endHour: number;
+	vesselIds: string[];
+	conflictType: 'route_overlap' | 'risk_overlap' | 'timing_conflict' | 'resource_contention';
+	severity: RiskLevel;
+	description: string;
+}
+
+export interface SchedulePlan {
+	id: string;
+	name: string;
+	vesselSchedules: VesselSchedule[];
+	conflicts: ConflictPeriod[];
+	totalScore: number;
+	maxRisk: RiskLevel;
+	createdAt: number;
+}
+
+export interface ScheduleWarning {
+	id: string;
+	vesselId: string;
+	type: 'high_risk_window' | 'conflict_detected' | 'low_visibility' | 'storm_warning' | 'current_hazard';
+	level: RiskLevel;
+	hour: number;
+	message: string;
+}
+
 export interface SavedScenario {
 	id: string;
 	name: string;

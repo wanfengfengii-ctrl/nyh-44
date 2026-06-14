@@ -11,9 +11,11 @@
 	import TidalPanel from '$lib/components/TidalPanel.svelte';
 	import TimelinePanel from '$lib/components/TimelinePanel.svelte';
 	import TemporalComparisonPanel from '$lib/components/TemporalComparisonPanel.svelte';
+	import MultiVesselScheduler from '$lib/components/MultiVesselScheduler.svelte';
 
 	let currentTime = $state('');
 	let temporalExpanded = $state(true);
+	let schedulerExpanded = $state(false);
 
 	$effect(() => {
 		const update = () => {
@@ -129,12 +131,37 @@
 			{/if}
 		</div>
 
+		<div class="mt-5 rounded-xl border border-white/8 bg-white/[0.03] backdrop-blur-md shadow-xl shadow-black/20 overflow-hidden">
+			<button
+				onclick={() => schedulerExpanded = !schedulerExpanded}
+				class="w-full flex items-center justify-between px-5 py-3 hover:bg-white/[0.03] transition-colors"
+			>
+				<div class="flex items-center gap-3">
+					<span class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-500/10 text-base">🚢</span>
+					<div class="text-left">
+						<h3 class="font-display text-sm font-semibold text-violet-300/90">多船协同调度与安全窗口推荐系统</h3>
+						<p class="text-[10px] text-sea-fog/50 tracking-wider">MULTI-VESSEL COOPERATIVE SCHEDULING & SAFETY WINDOW RECOMMENDATION</p>
+					</div>
+				</div>
+				<div class="flex items-center gap-2">
+					<span class="text-[10px] text-violet-400/60 font-mono">{schedulerExpanded ? '收起' : '展开'}</span>
+					<span class="text-white/50 transition-transform duration-300 {schedulerExpanded ? 'rotate-180' : ''}">▼</span>
+				</div>
+			</button>
+
+			{#if schedulerExpanded}
+				<div class="px-5 pb-5 pt-1">
+					<MultiVesselScheduler />
+				</div>
+			{/if}
+		</div>
+
 		<div class="mt-5 rounded-xl border border-white/8 bg-white/[0.03] p-5 backdrop-blur-md shadow-xl shadow-black/20">
 			<div class="mb-4 flex items-center gap-2">
 				<span class="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-accent/20 to-lighthouse-glow/10 text-sm">📖</span>
 				<h3 class="font-display text-sm font-semibold text-accent/90">使用说明</h3>
 			</div>
-			<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-6">
 				<div class="flex gap-3 rounded-lg bg-white/[0.03] p-3 border border-white/5 transition-all hover:bg-white/[0.06] hover:border-accent/20">
 					<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ocean-surface/15 text-sm font-bold text-ocean-surface">1</span>
 					<p class="text-xs leading-relaxed text-sea-fog/70">在左侧工具栏选择声源类型（灯塔/雾号），在画布上点击放置多个声源，可单独设置频率与声级。</p>
@@ -155,6 +182,10 @@
 					<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15 text-sm font-bold text-cyan-400">5</span>
 					<p class="text-xs leading-relaxed text-sea-fog/70">展开"潮汐与地形时变传播模拟系统"，设置潮汐/海况/时段参数，使用时间轴回放观察不同时刻的传播范围与风险演化，钉选关键时段进行对比分析。</p>
 				</div>
+				<div class="flex gap-3 rounded-lg bg-white/[0.03] p-3 border border-white/5 transition-all hover:bg-white/[0.06] hover:border-violet-400/20">
+					<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-sm font-bold text-violet-400">6</span>
+					<p class="text-xs leading-relaxed text-sea-fog/70">展开"多船协同调度与安全窗口推荐系统"，添加船只并绑定航线，系统自动计算各航线最佳出发时刻、安全通行窗口、风险重叠与冲突时段，支持方案排序对比和一键应用。</p>
+				</div>
 			</div>
 		</div>
 	</main>
@@ -162,7 +193,7 @@
 	<footer class="relative z-10 border-t border-white/5 mt-6 py-5">
 		<div class="mx-auto max-w-[1800px] px-6 text-center">
 			<p class="text-[11px] tracking-wider text-sea-fog/40">
-				多声源协同传播模型 · 考虑大气衰减、风速影响、障碍物遮蔽与叠加效应 · 潮汐与地形时变传播模拟 · 航线安全风险预警系统
+				多声源协同传播模型 · 考虑大气衰减、风速影响、障碍物遮蔽与叠加效应 · 潮汐与地形时变传播模拟 · 航线安全风险预警系统 · 多船协同调度与安全窗口推荐
 			</p>
 		</div>
 	</footer>
