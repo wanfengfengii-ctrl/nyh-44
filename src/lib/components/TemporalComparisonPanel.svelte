@@ -1,15 +1,18 @@
 <script lang="ts">
 	import { comparisonSnapshotsData, temporalMetricsSeries } from '$lib/stores/propagationStore';
 	import { temporal, TIDAL_PHASES, SEA_STATES, TIME_OF_DAY } from '$lib/stores/tidalStore';
+	import { activeRouteId, routes } from '$lib/stores/routesStore';
 	import { getRiskColor, getIntensityColor } from '$lib/acoustics';
 	import type { MultiSourceSectorSample } from '$lib/acoustics';
-	import type { ComparisonTimePoint } from '$lib/types';
+	import type { ComparisonTimePoint, RouteAnalysisResult } from '$lib/types';
 
 	const { comparisonPoints: comparisonPointsStore } = temporal;
 
 	let comparison = $derived($comparisonSnapshotsData);
 	let series = $derived($temporalMetricsSeries);
 	let comparisonPoints = $derived($comparisonPointsStore);
+	let activeId = $derived($activeRouteId);
+	let routeList = $derived($routes);
 
 	const comparisonColors = ['#fbbf24', '#3b82f6', '#a855f7', '#ec4899'];
 
@@ -22,6 +25,22 @@
 			const cp = comparisonPoints.find((p: ComparisonTimePoint) => p.timeIndex === idx);
 			return { idx, data, cp, orderInList: 0 };
 		});
+	}
+
+	function getRouteAnalysis(data: { routeAnalyses: Map<string, RouteAnalysisResult> }): RouteAnalysisResult | undefined {
+		if (activeId && data.routeAnalyses.has(activeId)) {
+			return data.routeAnalyses.get(activeId);
+		}
+		const first = data.routeAnalyses.values().next();
+		return first.value;
+	}
+
+	function getActiveRouteLabel(): string {
+		if (activeId) {
+			const r = routeList.find(r => r.id === activeId);
+			if (r) return r.name;
+		}
+		return routeList.length > 0 ? routeList[0].name : '未选择航线';
 	}
 
 	function sectorArea(samples: MultiSourceSectorSample[]) {
@@ -159,7 +178,7 @@
 			</div>
 
 			<div class="border-t border-white/10 pt-4">
-				<h4 class="text-xs font-bold text-white/60 uppercase tracking-wider mb-3">📊 航线指标对比</h4>
+				<h4 class="text-xs font-bold text-white/60 uppercase tracking-wider mb-3">📊 航线指标对比 <span class="text-[10px] font-normal text-white/30">({getActiveRouteLabel()})</span></h4>
 
 				{#if comparison.size > 0}
 					<div class="space-y-3">
@@ -171,7 +190,7 @@
 								<div class="space-y-1">
 									{#each Array.from(comparison.entries()) as [idx, data], i}
 										{@const cp = comparisonPoints.find((p: ComparisonTimePoint) => p.timeIndex === idx)}
-										{@const analysis = data.routeAnalyses.values().next().value}
+										{@const analysis = getRouteAnalysis(data)}
 										{#if analysis}
 											{@const rawValue = analysis[metric.key as keyof typeof analysis]}
 											{@const value = typeof rawValue === 'number' ? rawValue * metric.scale : 0}
@@ -241,8 +260,8 @@
 							/>
 
 							{#each Array.from(comparison.entries()) as [idx, data], i}
-								{@const analysis = data.routeAnalyses.values().next().value}
-								{#if analysis}
+							{@const analysis = getRouteAnalysis(data)}
+							{#if analysis}
 									<circle
 										cx={(idx / Math.max(1, series.timeLabels.length - 1)) * 300}
 										cy={115 - (analysis.avgIntensity / 100) * 100}

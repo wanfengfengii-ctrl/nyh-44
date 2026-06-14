@@ -10,7 +10,13 @@
 
 	let canvas = $state<HTMLCanvasElement | undefined>(undefined);
 	let chart = $state<Chart | null>(null);
-	let temporalMode = $state(false);
+
+	const { temporalMode: temporalModeStore } = temporal;
+	let temporalMode = $derived($temporalModeStore);
+
+	function toggleMode() {
+		temporalModeStore.set(!$temporalModeStore);
+	}
 
 	let effectiveSector = $derived(
 		temporalMode ? $temporalPropagationSector : $propagationSector
@@ -137,7 +143,7 @@
 			传播方向强度分布 {temporalMode ? '(时变)' : ''}
 		</span>
 		<button
-			onclick={() => temporalMode = !temporalMode}
+			onclick={() => toggleMode()}
 			class="flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] transition-all {
 				temporalMode
 					? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-300'

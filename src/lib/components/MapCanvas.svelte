@@ -22,7 +22,12 @@
 	let cliffStartY = $state(0);
 	let tempCliffId = $state<string | null>(null);
 
-	let temporalModeEnabled = $state(false);
+	const { temporalMode: temporalModeStore } = temporal;
+	let temporalModeEnabled = $derived($temporalModeStore);
+
+	function toggleTemporalMode() {
+		temporalModeStore.set(!$temporalModeStore);
+	}
 
 	let effectivePropagationResults = $derived(
 		temporalModeEnabled ? $temporalPropagationResults : $propagationResults
@@ -694,7 +699,7 @@
 
 	<div class="absolute top-3 right-3 z-10 flex gap-1">
 		<button
-			onclick={() => temporalModeEnabled = !temporalModeEnabled}
+			onclick={() => toggleTemporalMode()}
 			class="px-2.5 h-8 backdrop-blur-sm rounded-lg shadow-lg shadow-black/30 border transition-colors flex items-center justify-center gap-1.5 text-xs font-medium {
 				temporalModeEnabled
 					? 'bg-cyan-500/20 border-cyan-400/40 text-cyan-300 hover:bg-cyan-500/30'

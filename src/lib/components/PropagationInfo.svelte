@@ -5,7 +5,12 @@
 	import { routes } from '$lib/stores/routesStore';
 	import { temporal, tidalAttenuationFactor } from '$lib/stores/tidalStore';
 
-	let temporalMode = $state(false);
+	const { temporalMode: temporalModeStore } = temporal;
+	let temporalMode = $derived($temporalModeStore);
+
+	function toggleMode() {
+		temporalModeStore.set(!$temporalModeStore);
+	}
 
 	let effectiveReachable = $derived(
 		temporalMode ? $temporalPropagationResults.filter(r => r.isReachable).length : $reachablePointsCount
@@ -26,7 +31,7 @@
 			<span class="text-accent">📡</span> 传播统计
 		</h3>
 		<button
-			onclick={() => temporalMode = !temporalMode}
+			onclick={() => toggleMode()}
 			class="flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] transition-all {
 				temporalMode
 					? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-300'

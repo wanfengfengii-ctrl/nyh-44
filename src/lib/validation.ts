@@ -186,7 +186,8 @@ export function saveScenario(
 	points: Point[],
 	cliffs: Cliff[],
 	weather: WeatherParams,
-	routes: Route[] = []
+	routes: Route[] = [],
+	temporal?: TemporalParams
 ): SavedScenario {
 	const scenario: SavedScenario = {
 		id: `scenario-${Date.now()}`,
@@ -195,7 +196,8 @@ export function saveScenario(
 		points: JSON.parse(JSON.stringify(points)),
 		cliffs: JSON.parse(JSON.stringify(cliffs)),
 		weather: { ...weather },
-		routes: JSON.parse(JSON.stringify(routes))
+		routes: JSON.parse(JSON.stringify(routes)),
+		temporal: temporal ? JSON.parse(JSON.stringify(temporal)) : undefined
 	};
 
 	const saved = loadAllScenarios();

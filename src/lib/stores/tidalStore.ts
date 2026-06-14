@@ -112,6 +112,7 @@ function createTidalStore() {
 	const isPlaying = writable<boolean>(false);
 	const playbackSpeed = writable<number>(1);
 	const comparisonPoints = writable<ComparisonTimePoint[]>([]);
+	const temporalMode = writable<boolean>(false);
 	let playInterval: ReturnType<typeof setInterval> | null = null;
 
 	function generateTimeSnapshots(): TimeSnapshot[] {
@@ -261,6 +262,7 @@ function createTidalStore() {
 		currentTimeIndex.set(0);
 		isPlaying.set(false);
 		comparisonPoints.set([]);
+		temporalMode.set(false);
 		if (playInterval) {
 			clearInterval(playInterval);
 			playInterval = null;
@@ -370,7 +372,8 @@ function createTidalStore() {
 		comparisonPoints,
 		addComparisonPoint,
 		removeComparisonPoint,
-		clearComparisonPoints
+		clearComparisonPoints,
+		temporalMode
 	};
 }
 

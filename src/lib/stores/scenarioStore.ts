@@ -4,6 +4,7 @@ import { points } from './pointsStore';
 import { cliffs } from './cliffsStore';
 import { weather } from './weatherStore';
 import { routes } from './routesStore';
+import { temporal } from './tidalStore';
 import { saveScenario, loadAllScenarios, deleteScenario, importScenario, exportScenario } from '../validation';
 import { alerts } from './alertsStore';
 
@@ -19,13 +20,14 @@ function createScenarioStore() {
 		const currentCliffs = get(cliffs);
 		const currentWeather = get(weather);
 		const currentRoutes = get(routes);
+		const currentTemporal = get(temporal);
 
 		if (!name.trim()) {
 			alerts.showErrors(['请输入方案名称。']);
 			return null;
 		}
 
-		const scenario = saveScenario(name.trim(), currentPoints, currentCliffs, currentWeather, currentRoutes);
+		const scenario = saveScenario(name.trim(), currentPoints, currentCliffs, currentWeather, currentRoutes, currentTemporal);
 		alerts.showSuccess(`方案 "${scenario.name}" 已保存。`);
 		refresh();
 		return scenario;
@@ -36,6 +38,9 @@ function createScenarioStore() {
 		cliffs.set(scenario.cliffs);
 		weather.set(scenario.weather);
 		routes.set(scenario.routes ?? []);
+		if (scenario.temporal) {
+			temporal.set(scenario.temporal);
+		}
 		alerts.showSuccess(`方案 "${scenario.name}" 已加载。`);
 	}
 

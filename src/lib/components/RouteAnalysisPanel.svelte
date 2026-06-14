@@ -3,6 +3,7 @@
 	import { Chart, registerables } from 'chart.js';
 	import { activeRouteAnalysis, temporalActiveRouteAnalysis, totalRiskCount, temporalTotalRiskCount, allRiskPeaks } from '$lib/stores/propagationStore';
 	import { activeRoute, activeRouteId } from '$lib/stores/routesStore';
+	import { temporal } from '$lib/stores/tidalStore';
 	import { getRiskColor, getIntensityColor } from '$lib/acoustics';
 	import type { RouteRiskAlert } from '$lib/types';
 
@@ -12,7 +13,13 @@
 	let chart = $state<Chart | null>(null);
 
 	let selectedAlert = $state<RouteRiskAlert | null>(null);
-	let temporalMode = $state(false);
+
+	const { temporalMode: temporalModeStore } = temporal;
+	let temporalMode = $derived($temporalModeStore);
+
+	function toggleMode() {
+		temporalModeStore.set(!$temporalModeStore);
+	}
 
 	let effectiveAnalysis = $derived(
 		temporalMode ? $temporalActiveRouteAnalysis : $activeRouteAnalysis
@@ -204,7 +211,7 @@
 			<span class="text-accent">📊</span> 航线声强分析
 		</h3>
 		<button
-			onclick={() => temporalMode = !temporalMode}
+			onclick={() => toggleMode()}
 			class="flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] transition-all {
 				temporalMode
 					? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-300'
